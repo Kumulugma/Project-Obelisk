@@ -1,12 +1,19 @@
 <?php
+// Zamień zawartość public_html/admin/index.php
 session_start();
-require_once '../includes/config.php';
-require_once '../includes/database.php';
-require_once '../includes/Character.php';
-require_once '../includes/Battle.php';
-require_once '../includes/functions.php';
-require_once '../vendor/autoload.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// POPRAWNE ŚCIEŻKI - według explore.php
+require_once '../../rpg-game/includes/config.php';
+require_once '../../rpg-game/includes/database.php';
+require_once '../../rpg-game/includes/Character.php';
+require_once '../../rpg-game/includes/Battle.php';
+require_once '../../rpg-game/includes/functions.php';
+require_once '../../rpg-game/vendor/autoload.php';
+
+// Sprawdź autoryzację
 if (!isset($_SESSION['admin_logged_in'])) {
     header('Location: login.php');
     exit;
@@ -19,6 +26,7 @@ $smarty->setCacheDir(CACHE_DIR);
 
 $db = Database::getInstance();
 
+// Pobierz statystyki
 $stats = [];
 $stats['total_characters'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
 $stats['total_battles'] = $db->fetchOne("SELECT COUNT(*) as count FROM battles")['count'];
@@ -26,6 +34,7 @@ $stats['active_today'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters
 $stats['total_weapons'] = $db->fetchOne("SELECT COUNT(*) as count FROM weapons")['count'];
 $stats['total_traits'] = $db->fetchOne("SELECT COUNT(*) as count FROM traits")['count'];
 
+// Ostatnie walki
 $recentBattles = $db->fetchAll("
     SELECT b.*, a.name as attacker_name, d.name as defender_name, w.name as winner_name
     FROM battles b
@@ -36,6 +45,7 @@ $recentBattles = $db->fetchAll("
     LIMIT 10
 ");
 
+// Najlepsi gracze
 $topPlayers = $db->fetchAll("
     SELECT name, level, experience, last_login
     FROM characters

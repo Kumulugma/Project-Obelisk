@@ -1,12 +1,17 @@
 <?php
+// Zamień zawartość public_html/admin/login.php
 session_start();
-require_once '../includes/config.php';
-require_once '../includes/database.php';
-require_once '../includes/Character.php';
-require_once '../includes/Battle.php';
-require_once '../includes/functions.php';
-require_once '../vendor/autoload.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// POPRAWNE ŚCIEŻKI - według explore.php
+require_once '../../rpg-game/includes/config.php';
+require_once '../../rpg-game/includes/database.php';
+require_once '../../rpg-game/includes/functions.php';
+require_once '../../rpg-game/vendor/autoload.php';
+
+// Sprawdź czy już zalogowany
 if (isset($_SESSION['admin_logged_in'])) {
     header('Location: index.php');
     exit;
@@ -26,23 +31,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($username) || empty($password)) {
         $error = 'Podaj nazwę użytkownika i hasło.';
     } else {
-        $db = Database::getInstance();
-        $admin = $db->fetchOne(
-            "SELECT * FROM admin_users WHERE username = ?",
-            [$username]
-        );
-        
-        if ($admin && password_verify($password, $admin['password_hash'])) {
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin['id'];
-            $_SESSION['admin_username'] = $admin['username'];
-            header('Location: index.php');
-            exit;
-        } else {
-            $error = 'Nieprawidłowe dane logowania.';
+        try {
+            $db = Database::getInstance();
+            $admin = $db->fetchOne(
+                "SELECT * FROM admin_users WHERE username = ?",
+                [$username]
+            );
+            
+            if ($admin && password_verify($password, $admin['password_hash'])) {
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_id'] = $admin['id'];
+                $_SESSION['admin_username'] = $admin['username'];
+                header('Location: index.php');
+                exit;
+            } else {
+                $error = 'Nieprawidłowe dane logowania.';
+            }
+        } catch (Exception $e) {
+            $error = 'Błąd bazy danych: ' . $e->getMessage();
         }
     }
 }
 
 $smarty->assign('error', $error);
 $smarty->display('login.tpl');
+?>

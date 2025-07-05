@@ -1,12 +1,24 @@
-# Dodatkowe zabezpieczenie admin
+# Zabezpieczenie panelu admin - zezwól na dostęp dla Twojego IP
 <RequireAll>
-    Require all denied
-    # Opcjonalnie: ograniczenie IP
-    # Require ip 123.456.789.0
+    Require ip 46.149.223.89
+    # Dodatkowe IP - jeśli potrzebujesz
+    # Require ip 192.168.1.0/24
 </RequireAll>
 
-# Jeśli chcesz zezwolić na dostęp, zastąp powyższe:
+# Alternatywnie - zezwól wszystkim (mniej bezpieczne):
 # <Files "*.php">
 #     Order Allow,Deny
 #     Allow from all
 # </Files>
+
+# Blokuj dostęp do szablonów i plików konfiguracyjnych
+<FilesMatch "\.(tpl|conf|ini)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Blokuj dostęp do katalogów vendor i includes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(vendor|includes)/ - [F,L]
+</IfModule>

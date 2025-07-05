@@ -1,9 +1,14 @@
 RewriteEngine On
 
-# Przekierowanie do panelu admin (zabezpieczone)
-RewriteRule ^admin/?(.*)$ ../rpg-game/admin/$1 [L]
+# Przekierowanie do panelu admin - POPRAWIONE
+# Zamiast przekierowywać, pozwól na bezpośredni dostęp
+RewriteCond %{REQUEST_URI} ^/admin
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^admin/(.*)$ admin/$1 [L]
 
-# Istniejące reguły dla profili
+# Istniejące reguły dla profili (tylko jeśli nie jest to admin)
+RewriteCond %{REQUEST_URI} !^/admin
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^([^/]+)/([^/]+)/?$ profile.php?hash1=$1&hash2=$2 [QSA,L]
