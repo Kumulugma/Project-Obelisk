@@ -2,8 +2,6 @@
 // Zamień zawartość public_html/admin/index.php
 session_start();
 
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
 // POPRAWNE ŚCIEŻKI - według explore.php
 require_once '../../rpg-game/includes/config.php';
