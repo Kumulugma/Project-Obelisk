@@ -1,0 +1,12 @@
+# Dodatkowe zabezpieczenie admin
+<RequireAll>
+    Require all denied
+    # Opcjonalnie: ograniczenie IP
+    # Require ip 123.456.789.0
+</RequireAll>
+
+# Jeśli chcesz zezwolić na dostęp, zastąp powyższe:
+# <Files "*.php">
+#     Order Allow,Deny
+#     Allow from all
+# </Files>

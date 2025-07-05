@@ -1,0 +1,15 @@
+{
+    "name": "rpg-game/smarty-app",
+    "description": "RPG Game with Smarty Templates",
+    "require": {
+        "php": ">=7.4",
+        "smarty/smarty": "^4.0",
+        "ext-pdo": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "RPGGame\\": "includes/"
+        }
+    }
+}

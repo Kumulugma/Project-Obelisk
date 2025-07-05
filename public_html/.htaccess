@@ -1,0 +1,26 @@
+RewriteEngine On
+
+# Przekierowanie do panelu admin (zabezpieczone)
+RewriteRule ^admin/?(.*)$ ../rpg-game/admin/$1 [L]
+
+# Istniejące reguły dla profili
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/([^/]+)/?$ profile.php?hash1=$1&hash2=$2 [QSA,L]
+
+# Bezpieczeństwo
+<Files "*.php">
+    Order Deny,Allow
+    Allow from all
+</Files>
+
+<FilesMatch "\.(tpl|conf)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Blokuj dostęp do katalogu nadrzędnego
+<Files "../*">
+    Order Deny,Allow
+    Deny from all
+</Files>
