@@ -409,12 +409,6 @@ function getUserIP() {
     }
 }
 
-/**
- * Generuje URL do profilu postaci
- */
-function generateProfileURL($hash1, $hash2) {
-    return SITE_URL . '/' . $hash1 . '/' . $hash2;
-}
 
 /**
  * Sprawdza czy użytkownik może wykonać akcję (rate limiting)
@@ -463,5 +457,300 @@ function debug($var, $die = false) {
  */
 function isDebugMode() {
     return defined('DEBUG_MODE') && DEBUG_MODE;
+}
+
+/**
+ * Sprawdza status postaci na podstawie ciasteczka (bezpieczna wersja)
+ */
+function checkCharacterStatusFromCookie() {
+    $cookieData = getCharacterFromCookie();
+    
+    if (!$cookieData) {
+        return ['status' => 'no_cookie'];
+    }
+    
+    try {
+        $db = Database::getInstance();
+        $character = $db->fetchOne(
+            "SELECT id, status, name FROM characters WHERE pin = ?",
+            [$cookieData['pin']]
+        );
+        
+        if (!$character) {
+            clearCharacterCookie();
+            return ['status' => 'not_found'];
+        }
+        
+        // Sprawdź czy kolumna status istnieje
+        if (isset($character['status'])) {
+            if ($character['status'] === 'deleted') {
+                clearCharacterCookie();
+                return ['status' => 'deleted', 'message' => 'Twoja postać została usunięta.'];
+            }
+            
+            if ($character['status'] === 'banished') {
+                clearCharacterCookie();
+                return ['status' => 'banished', 'message' => 'Twoja postać została odebrana przez administratora.'];
+            }
+        }
+        
+        return ['status' => 'active', 'character' => $character];
+        
+    } catch (Exception $e) {
+        return ['status' => 'error', 'message' => 'Błąd sprawdzania statusu postaci.'];
+    }
+}
+
+/**
+ * Pobiera ustawienie z bazy danych (bezpieczna wersja)
+ */
+function getSetting($key, $defaultValue = null) {
+    try {
+        $db = Database::getInstance();
+        
+        // Sprawdź czy tabela system_settings istnieje
+        $tableExists = $db->fetchOne("SHOW TABLES LIKE 'system_settings'");
+        
+        if (!$tableExists) {
+            return $defaultValue;
+        }
+        
+        $result = $db->fetchOne(
+            "SELECT setting_value FROM system_settings WHERE setting_key = ?",
+            [$key]
+        );
+        
+        if ($result) {
+            $value = $result['setting_value'];
+            
+            // Automatyczna konwersja typów
+            if (is_numeric($value)) {
+                return strpos($value, '.') !== false ? (float)$value : (int)$value;
+            }
+            
+            if (in_array(strtolower($value), ['true', 'false'])) {
+                return strtolower($value) === 'true';
+            }
+            
+            return $value;
+        }
+        
+        return $defaultValue;
+        
+    } catch (Exception $e) {
+        return $defaultValue;
+    }
+}
+
+/**
+ * Zapisuje ustawienie w bazie danych
+ */
+function setSetting($key, $value) {
+    try {
+        $db = Database::getInstance();
+        
+        // Konwertuj wartości na string
+        if (is_bool($value)) {
+            $value = $value ? 'true' : 'false';
+        } elseif (is_numeric($value)) {
+            $value = (string)$value;
+        }
+        
+        $existing = $db->fetchOne(
+            "SELECT id FROM system_settings WHERE setting_key = ?",
+            [$key]
+        );
+        
+        if ($existing) {
+            $db->query(
+                "UPDATE system_settings SET setting_value = ? WHERE setting_key = ?",
+                [$value, $key]
+            );
+        } else {
+            $db->query(
+                "INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)",
+                [$key, $value]
+            );
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Sprawdza czy postać ma prawo dostępu
+ */
+function validateCharacterAccess($characterData) {
+    if (!$characterData) {
+        return false;
+    }
+    
+    // Sprawdź status postaci
+    if (in_array($characterData['status'], ['deleted', 'banished'])) {
+        clearCharacterCookie();
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Formatuje czas dla wyświetlenia "ostatnie logowanie"
+ */
+function formatLastLogin($datetime) {
+    if (empty($datetime) || $datetime === '0000-00-00 00:00:00') {
+        return 'Nigdy';
+    }
+    
+    $now = new DateTime();
+    $login = new DateTime($datetime);
+    $diff = $now->diff($login);
+    
+    if ($diff->days == 0) {
+        if ($diff->h == 0) {
+            if ($diff->i == 0) {
+                return 'Przed chwilą';
+            }
+            return $diff->i . ' min temu';
+        }
+        return $diff->h . ' godz temu';
+    } elseif ($diff->days == 1) {
+        return 'Wczoraj';
+    } elseif ($diff->days < 7) {
+        return $diff->days . ' dni temu';
+    } else {
+        return $login->format('d.m.Y');
+    }
+}
+
+/**
+ * Oblicza procent dla paska postępu
+ */
+function calculateProgressPercent($current, $max) {
+    if ($max <= 0) {
+        return 0;
+    }
+    
+    return min(100, max(0, ($current / $max) * 100));
+}
+
+/**
+ * Sprawdza czy użytkownik ma uprawnienia administratora
+ */
+function isAdmin() {
+    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+}
+
+/**
+ * Przekierowuje jeśli użytkownik nie jest administratorem
+ */
+function requireAdmin() {
+    if (!isAdmin()) {
+        header('Location: /admin/login.php');
+        exit;
+    }
+}
+
+/**
+ * Generuje bezpieczny URL dla profilu postaci
+ */
+function generateProfileUrl($hash1, $hash2, $baseUrl = '') {
+    if (empty($baseUrl)) {
+        $baseUrl = SITE_URL;
+    }
+    
+    return rtrim($baseUrl, '/') . '/' . $hash1 . '/' . $hash2;
+}
+
+/**
+ * Waliduje format PIN-u
+ */
+function isValidPin($pin) {
+    return preg_match('/^\d{6}$/', $pin);
+}
+
+/**
+ * Sanityzuje i waliduje upload avatara
+ */
+function validateAvatarPath($path) {
+    // Podstawowa walidacja ścieżki
+    if (empty($path)) {
+        return false;
+    }
+    
+    // Sprawdź czy ścieżka zaczyna się od /images/
+    if (!str_starts_with($path, '/images/')) {
+        return false;
+    }
+    
+    // Sprawdź rozszerzenie pliku
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    
+    return in_array($extension, $allowedExtensions);
+}
+
+/**
+ * Pobiera statystyki systemu dla dashboard (bezpieczna wersja)
+ */
+function getSystemStats() {
+    try {
+        $db = Database::getInstance();
+        
+        $stats = [];
+        
+        // Podstawowe statystyki z obsługą błędów
+        try {
+            $stats['total_characters'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
+        } catch (Exception $e) {
+            $stats['total_characters'] = 0;
+        }
+        
+        try {
+            $stats['active_characters'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters WHERE status = 'active' OR status IS NULL")['count'];
+        } catch (Exception $e) {
+            $stats['active_characters'] = $stats['total_characters'];
+        }
+        
+        try {
+            $stats['total_battles'] = $db->fetchOne("SELECT COUNT(*) as count FROM battles")['count'];
+        } catch (Exception $e) {
+            $stats['total_battles'] = 0;
+        }
+        
+        try {
+            $stats['active_users'] = $db->fetchOne(
+                "SELECT COUNT(*) as count FROM characters WHERE last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            )['count'];
+        } catch (Exception $e) {
+            $stats['active_users'] = 0;
+        }
+        
+        try {
+            // Rozmiar bazy danych
+            $dbSize = $db->fetchOne("
+                SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS db_size_mb 
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE()
+            ");
+            $stats['db_size'] = $dbSize['db_size_mb'] ?? 0;
+        } catch (Exception $e) {
+            $stats['db_size'] = 0;
+        }
+        
+        return $stats;
+        
+    } catch (Exception $e) {
+        return [
+            'total_characters' => 0,
+            'active_characters' => 0,
+            'total_battles' => 0,
+            'active_users' => 0,
+            'db_size' => 0
+        ];
+    }
 }
 ?>

@@ -65,42 +65,23 @@
     </div>
     <div class="card-body">
         <form method="POST">
-            <input type="hidden" name="save_settings" value="1">
-            
-            <!-- KONTROLA REJESTRACJI -->
+            <!-- USTAWIENIA REJESTRACJI -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <h5><i class="fas fa-user-plus"></i> Kontrola Rejestracji</h5>
+                    <h5><i class="fas fa-user-plus"></i> Rejestracja</h5>
                     <hr>
                 </div>
             </div>
             
             <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Tryb rejestracji</label>
-                    <select class="form-select" name="registration_mode" id="registration_mode" onchange="toggleRegistrationSettings()">
-                        <option value="open" {if $settings.registration_mode == 'open'}selected{/if}>
-                            🟢 Otwarta rejestracja
-                        </option>
-                        <option value="invite_only" {if $settings.registration_mode == 'invite_only'}selected{/if}>
-                            🟡 Tylko z kodem zaproszenia
-                        </option>
-                        <option value="closed" {if $settings.registration_mode == 'closed'}selected{/if}>
-                            🔴 Rejestracja zamknięta
-                        </option>
+                    <select class="form-select" name="registration_mode" required>
+                        <option value="open" {if $settings.registration_mode == 'open'}selected{/if}>Otwarta</option>
+                        <option value="invite_only" {if $settings.registration_mode == 'invite_only'}selected{/if}>Tylko z kodem</option>
+                        <option value="closed" {if $settings.registration_mode == 'closed'}selected{/if}>Zamknięta</option>
                     </select>
-                    <div class="form-text">Kontroluje kto może tworzyć nowe postacie</div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Status rejestracji</label>
-                    <div class="alert alert-sm" id="registration_status">
-                        <span id="status_icon"></span> <span id="status_text"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- KOMUNIKATY REJESTRACJI -->
-            <div class="row mb-4">
                 <div class="col-md-4">
                     <label class="form-label">
                         <i class="fas fa-check-circle text-success"></i> Komunikat otwartej rejestracji
@@ -115,6 +96,9 @@
                     <textarea class="form-control" name="invite_only_message" rows="2" 
                               placeholder="Komunikat gdy rejestracja wymaga kodu">{$settings.invite_only_message}</textarea>
                 </div>
+            </div>
+            
+            <div class="row mb-4">
                 <div class="col-md-4">
                     <label class="form-label">
                         <i class="fas fa-times-circle text-danger"></i> Komunikat zamkniętej rejestracji
@@ -152,7 +136,7 @@
                     <div class="form-text">Punkty wyzwań na dzień</div>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Maksimum znajomych</label>
+                    <label class="form-label">Maksymalna liczba znajomych</label>
                     <input type="number" class="form-control" name="max_friends" 
                            value="{$settings.max_friends}" min="1" max="100" required>
                     <div class="form-text">Limit znajomych na postać</div>
@@ -161,31 +145,23 @@
             
             <div class="row mb-3">
                 <div class="col-md-4">
-                    <label class="form-label">EXP na poziom</label>
+                    <label class="form-label">Doświadczenie na poziom</label>
                     <input type="number" class="form-control" name="exp_per_level" 
                            value="{$settings.exp_per_level}" min="50" max="1000" required>
-                    <div class="form-text">Doświadczenie potrzebne na awans</div>
+                    <div class="form-text">Ile doświadczenia potrzeba na każdy poziom</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Szansa na trait (%)</label>
                     <input type="number" class="form-control" name="trait_chance" 
                            value="{$settings.trait_chance}" min="0" max="100" step="0.1" required>
-                    <div class="form-text">Prawdopodobieństwo otrzymania cechy</div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Status systemu</label>
-                    <div class="d-flex gap-2">
-                        <span class="badge bg-success">Online</span>
-                        <span class="badge bg-info">{$system_stats.total_characters} postaci</span>
-                        <span class="badge bg-warning">{$system_stats.total_battles} walk</span>
-                    </div>
+                    <div class="form-text">Szansa na zdobycie traita po walce</div>
                 </div>
             </div>
             
             <!-- USTAWIENIA RECAPTCHA -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <h5><i class="fas fa-shield-alt"></i> Zabezpieczenia reCAPTCHA</h5>
+                    <h5><i class="fas fa-shield-alt"></i> Zabezpieczenia (reCAPTCHA)</h5>
                     <hr>
                 </div>
             </div>
@@ -194,20 +170,20 @@
                 <div class="col-md-6">
                     <label class="form-label">reCAPTCHA Site Key</label>
                     <input type="text" class="form-control" name="recaptcha_site_key" 
-                           value="{$settings.recaptcha_site_key}" placeholder="6Le...">
-                    <div class="form-text">Klucz publiczny reCAPTCHA v2</div>
+                           value="{$settings.recaptcha_site_key}" placeholder="6Lc...">
+                    <div class="form-text">Klucz publiczny reCAPTCHA</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">reCAPTCHA Secret Key</label>
-                    <input type="password" class="form-control" name="recaptcha_secret_key" 
-                           value="{$settings.recaptcha_secret_key}" placeholder="6Le...">
-                    <div class="form-text">Klucz prywatny reCAPTCHA v2</div>
+                    <input type="text" class="form-control" name="recaptcha_secret_key" 
+                           value="{$settings.recaptcha_secret_key}" placeholder="6Lc...">
+                    <div class="form-text">Klucz prywatny reCAPTCHA</div>
                 </div>
             </div>
             
-            <div class="d-grid">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fas fa-save"></i> Zapisz Wszystkie Ustawienia
+            <div class="text-end">
+                <button type="submit" name="save_settings" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Zapisz Ustawienia
                 </button>
             </div>
         </form>
@@ -218,44 +194,20 @@
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4><i class="fas fa-key"></i> Kody Tajne</h4>
-        <div>
-            <span class="badge bg-primary">Wszystkich: {$code_stats.total}</span>
-            <span class="badge bg-success">Aktywnych: {$code_stats.active}</span>
-            <span class="badge bg-warning">Bez limitu: {$code_stats.unlimited}</span>
-            <span class="badge bg-danger">Wygasłych: {$code_stats.expired}</span>
-        </div>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCodeModal">
+            <i class="fas fa-plus"></i> Dodaj Kod
+        </button>
     </div>
     <div class="card-body">
-        <!-- Formularz dodawania kodu -->
-        <form method="POST" class="mb-4">
-            <div class="row">
-                <div class="col-md-4">
-                    <input type="text" class="form-control" name="code" placeholder="Kod tajny" required>
-                </div>
-                <div class="col-md-3">
-                    <input type="number" class="form-control" name="uses_left" value="1" min="-1" placeholder="Użycia (-1 = bez limitu)">
-                </div>
-                <div class="col-md-3">
-                    <input type="text" class="form-control" name="description" placeholder="Opis kodu">
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" name="add_secret_code" class="btn btn-success w-100">
-                        <i class="fas fa-plus"></i> Dodaj
-                    </button>
-                </div>
-            </div>
-        </form>
-        
-        <!-- Lista kodów -->
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
                     <tr>
                         <th>Kod</th>
-                        <th>Użycia</th>
+                        <th>Pozostałe użycia</th>
                         <th>Opis</th>
                         <th>Status</th>
-                        <th>Utworzony</th>
+                        <th>Data utworzenia</th>
                         <th>Akcje</th>
                     </tr>
                 </thead>
@@ -264,13 +216,9 @@
                     <tr>
                         <td><code>{$code.code}</code></td>
                         <td>
-                            {if $code.uses_left == -1}
-                                <span class="badge bg-success">Bez limitu</span>
-                            {elseif $code.uses_left == 0}
-                                <span class="badge bg-danger">Wyczerpany</span>
-                            {else}
-                                <span class="badge bg-primary">{$code.uses_left}</span>
-                            {/if}
+                            <span class="badge bg-{if $code.uses_left > 0}primary{else}secondary{/if}">
+                                {$code.uses_left}
+                            </span>
                         </td>
                         <td>{$code.description}</td>
                         <td>
@@ -280,17 +228,63 @@
                                 <span class="badge bg-secondary">Nieaktywny</span>
                             {/if}
                         </td>
-                        <td><small>{$code.created_at|date_format:"%d.%m.%Y %H:%M"}</small></td>
+                        <td>{$code.created_at|date_format:"%d.%m.%Y %H:%M"}</td>
                         <td>
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCodeModal{$code.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <form method="POST" class="d-inline">
                                 <input type="hidden" name="code_id" value="{$code.id}">
-                                <button type="submit" name="delete_secret_code" class="btn btn-sm btn-outline-danger"
+                                <button type="submit" name="delete_secret_code" class="btn btn-sm btn-outline-danger" 
                                         onclick="return confirm('Czy na pewno usunąć kod {$code.code}?')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
                         </td>
                     </tr>
+                    
+                    <!-- Modal edycji kodu -->
+                    <div class="modal fade" id="editCodeModal{$code.id}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Edytuj Kod Tajny</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST">
+                                    <div class="modal-body">
+                                        <input type="hidden" name="code_id" value="{$code.id}">
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Kod</label>
+                                            <input type="text" class="form-control" name="code" value="{$code.code}" required>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Pozostałe użycia</label>
+                                            <input type="number" class="form-control" name="uses_left" value="{$code.uses_left}" min="0">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Opis</label>
+                                            <textarea class="form-control" name="description" rows="2">{$code.description}</textarea>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="is_active" {if $code.is_active}checked{/if}>
+                                                <label class="form-check-label">Aktywny</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                                        <button type="submit" name="edit_secret_code" class="btn btn-primary">Zapisz</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     {foreachelse}
                     <tr>
                         <td colspan="6" class="text-center text-muted">Brak kodów tajnych</td>
@@ -302,192 +296,40 @@
     </div>
 </div>
 
-<!-- ZARZĄDZANIE AVATARAMI -->
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4><i class="fas fa-user-circle"></i> Avatary</h4>
-        <div>
-            <span class="badge bg-primary">Wszystkich: {$avatar_stats.total}</span>
-            <span class="badge bg-success">Aktywnych: {$avatar_stats.active}</span>
-            <span class="badge bg-info">Męskich: {$avatar_stats.male}</span>
-            <span class="badge bg-danger">Żeńskich: {$avatar_stats.female}</span>
-            <span class="badge bg-warning">Unisex: {$avatar_stats.unisex}</span>
-        </div>
-    </div>
-    <div class="card-body">
-        <!-- Formularz dodawania avatara -->
-        <form method="POST" class="mb-4">
-            <div class="row">
-                <div class="col-md-5">
-                    <input type="text" class="form-control" name="image_path" placeholder="/images/avatars/avatar.png" required>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" name="gender" required>
-                        <option value="male">Męski</option>
-                        <option value="female">Żeński</option>
-                        <option value="unisex">Uniwersalny</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="is_active" checked>
-                        <label class="form-check-label">Aktywny</label>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" name="add_avatar" class="btn btn-success w-100">
-                        <i class="fas fa-plus"></i> Dodaj
-                    </button>
-                </div>
+<!-- Modal dodawania kodu -->
+<div class="modal fade" id="addCodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dodaj Nowy Kod Tajny</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-        </form>
-        
-        <!-- Bulk import -->
-        <div class="collapse" id="bulkImportCollapse">
-            <form method="POST" class="border p-3 mb-3 bg-light rounded">
-                <h6>Import wielu avatarów</h6>
-                <div class="row">
-                    <div class="col-md-8">
-                        <textarea class="form-control" name="avatars_data" rows="4" 
-                                  placeholder="/images/avatars/male/warrior1.png|male&#10;/images/avatars/female/mage1.png|female&#10;/images/avatars/unisex/mystery1.png|unisex"></textarea>
-                        <small class="form-text">Każdy avatar w nowej linii. Format: ścieżka|płeć</small>
+            <form method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Kod</label>
+                        <input type="text" class="form-control" name="code" placeholder="np. BETA2024" required>
+                        <div class="form-text">Kod który będą wpisywać gracze</div>
                     </div>
-                    <div class="col-md-4">
-                        <select class="form-select mb-2" name="default_gender">
-                            <option value="male">Domyślnie męski</option>
-                            <option value="female">Domyślnie żeński</option>
-                            <option value="unisex">Domyślnie unisex</option>
-                        </select>
-                        <button type="submit" name="bulk_add_avatars" class="btn btn-warning w-100">
-                            <i class="fas fa-upload"></i> Import
-                        </button>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Liczba użyć</label>
+                        <input type="number" class="form-control" name="uses_left" value="100" min="1" required>
+                        <div class="form-text">Ile razy kod może być użyty</div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Opis</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="Opis kodu dla adminów"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" name="add_secret_code" class="btn btn-primary">Dodaj Kod</button>
                 </div>
             </form>
-        </div>
-        
-        <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#bulkImportCollapse">
-            <i class="fas fa-upload"></i> Import wielu avatarów
-        </button>
-        
-        <!-- Lista avatarów -->
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Podgląd</th>
-                        <th>Ścieżka</th>
-                        <th>Płeć</th>
-                        <th>Status</th>
-                        <th>Użycia</th>
-                        <th>Akcje</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {foreach $avatars as $avatar}
-                    <tr>
-                        <td>
-                            <img src="{$avatar.image_path}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%;" 
-                                 onerror="this.src='/images/avatars/default.png'">
-                        </td>
-                        <td><code>{$avatar.image_path}</code></td>
-                        <td>
-                            {if $avatar.gender == 'male'}
-                                <span class="badge bg-info">Męski</span>
-                            {elseif $avatar.gender == 'female'}
-                                <span class="badge bg-danger">Żeński</span>
-                            {else}
-                                <span class="badge bg-warning">Unisex</span>
-                            {/if}
-                        </td>
-                        <td>
-                            {if $avatar.is_active}
-                                <span class="badge bg-success">Aktywny</span>
-                            {else}
-                                <span class="badge bg-secondary">Nieaktywny</span>
-                            {/if}
-                        </td>
-                        <td><span class="badge bg-primary">{$avatar.usage_count}</span></td>
-                        <td>
-                            <form method="POST" class="d-inline">
-                                <input type="hidden" name="avatar_id" value="{$avatar.id}">
-                                <button type="submit" name="delete_avatar" class="btn btn-sm btn-outline-danger"
-                                        onclick="return confirm('Czy na pewno usunąć ten avatar?')"
-                                        {if $avatar.usage_count > 0}disabled title="Avatar jest używany przez postacie"{/if}>
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {foreachelse}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted">Brak avatarów</td>
-                    </tr>
-                    {/foreach}
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
 
 {include file="footer.tpl"}
-
-<script>
-function toggleRegistrationSettings() {
-    const mode = document.getElementById('registration_mode').value;
-    const statusAlert = document.getElementById('registration_status');
-    const statusIcon = document.getElementById('status_icon');
-    const statusText = document.getElementById('status_text');
-    
-    // Resetuj klasy alertu
-    statusAlert.className = 'alert alert-sm';
-    
-    switch(mode) {
-        case 'open':
-            statusAlert.classList.add('alert-success');
-            statusIcon.innerHTML = '<i class="fas fa-unlock"></i>';
-            statusText.textContent = 'Każdy może tworzyć nowe postacie (z ograniczeniem limitu)';
-            break;
-            
-        case 'invite_only':
-            statusAlert.classList.add('alert-warning');
-            statusIcon.innerHTML = '<i class="fas fa-key"></i>';
-            statusText.textContent = 'Tylko osoby z kodem zaproszenia mogą się zarejestrować';
-            break;
-            
-        case 'closed':
-            statusAlert.classList.add('alert-danger');
-            statusIcon.innerHTML = '<i class="fas fa-lock"></i>';
-            statusText.textContent = 'Rejestracja całkowicie zamknięta - nikt nie może się zarejestrować';
-            break;
-    }
-}
-
-// Wywołaj przy ładowaniu strony
-document.addEventListener('DOMContentLoaded', toggleRegistrationSettings);
-</script>
-
-<style>
-.stat-card {
-    transition: transform 0.2s;
-    border: none;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-}
-
-.table th {
-    border-top: none;
-    font-weight: 600;
-    background-color: #f8f9fa;
-}
-
-.badge {
-    font-size: 0.75em;
-}
-
-.form-text {
-    font-size: 0.8em;
-}
-</style>

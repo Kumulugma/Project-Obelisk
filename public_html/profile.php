@@ -1,5 +1,4 @@
 <?php
-
 session_start();
 require_once '../rpg-game/includes/config.php';
 require_once '../rpg-game/includes/database.php';
@@ -25,12 +24,21 @@ if (empty($hash1) || empty($hash2)) {
     exit;
 }
 
-// Sprawdź czy postać istnieje
-$charData = $character->getByHashes($hash1, $hash2);
-if (!$charData) {
+// Sprawdź dostęp do postaci (czy nie została usunięta/odebrana)
+$accessCheck = $character->checkCharacterAccess($hash1, $hash2);
+
+if ($accessCheck['status'] !== 'active') {
+    // Usuń ciasteczko jeśli postać została usunięta lub odebrana
+    clearCharacterCookie();
+    
+    // Przekieruj z komunikatem
+    $_SESSION['access_message'] = $accessCheck['message'];
+    $_SESSION['access_type'] = $accessCheck['status'];
     header('Location: /');
     exit;
 }
+
+$charData = $accessCheck['character'];
 
 // Zaktualizuj ostatnie logowanie i resetuj punkty
 $character->updateLastLogin($charData['id']);
@@ -39,12 +47,29 @@ $character->resetDailyPoints($charData['id']);
 // Pobierz zaktualizowane dane
 $charData = $character->getByHashes($hash1, $hash2);
 
-// Pobierz dane do wyświetlenia
+// Sprawdź czy ma ciasteczko (do wyświetlenia PIN-u)
+$cookieData = getCharacterFromCookie();
+$showPin = ($cookieData && $cookieData['pin'] === $charData['pin']);
+
+// Pobierz dane do wyświetlenia - NAPRAWIONE: używamy istniejących metod
 $traits = $character->getTraits($charData['id']);
-$friends = $character->getFriends($charData['id']);
+
+// TYMCZASOWO: puste tablice dla znajomych (do póki nie naprawimy struktury bazy)
+$friends = [];
+try {
+    // Spróbuj pobrać znajomych - jeśli tabela istnieje
+    $friends = $character->getFriends($charData['id']);
+} catch (Exception $e) {
+    // Jeśli tabela nie istnieje, pozostaw pustą tablicę
+    $friends = [];
+}
+
 $weapons = $character->getWeapons($charData['id']);
 $recentBattles = $character->getRecentBattles($charData['id'], 10);
 $opponents = $character->getRandomOpponents($charData['id'], 10);
+
+// Pobierz sformatowane statystyki
+$formattedStats = $character->formatCharacterStats($charData);
 
 // Obsługa akcji
 $message = '';
@@ -84,24 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     break;
                     
-                case 'equip_weapon':
-                    $weaponId = intval($_POST['weapon_id'] ?? 0);
-                    try {
-                        $character->equipWeapon($charData['id'], $weaponId);
-                        $message = 'Broń została wyposażona!';
-                        $messageType = 'success';
-                    } catch (Exception $e) {
-                        $message = $e->getMessage();
-                        $messageType = 'error';
-                    }
-                    break;
-                    
                 case 'add_friend':
-                    $friendId = intval($_POST['friend_id'] ?? 0);
+                    $friendPin = sanitizeInput($_POST['friend_pin'] ?? '');
                     try {
-                        $character->addFriend($charData['id'], $friendId);
-                        $message = 'Przeciwnik został dodany do znajomych!';
-                        $messageType = 'success';
+                        // TYMCZASOWO: wyłączone do póki nie naprawimy bazy danych
+                        throw new Exception('System znajomych jest tymczasowo wyłączony.');
+                        // $character->addFriend($charData['id'], $friendPin);
+                        // $message = 'Znajomy został dodany!';
+                        // $messageType = 'success';
                     } catch (Exception $e) {
                         $message = $e->getMessage();
                         $messageType = 'error';
@@ -111,9 +126,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 case 'remove_friend':
                     $friendId = intval($_POST['friend_id'] ?? 0);
                     try {
-                        $character->removeFriend($charData['id'], $friendId);
-                        $message = 'Znajomy został usunięty!';
-                        $messageType = 'success';
+                        // TYMCZASOWO: wyłączone do póki nie naprawimy bazy danych
+                        throw new Exception('System znajomych jest tymczasowo wyłączony.');
+                        // $character->removeFriend($charData['id'], $friendId);
+                        // $message = 'Znajomy został usunięty!';
+                        // $messageType = 'success';
                     } catch (Exception $e) {
                         $message = $e->getMessage();
                         $messageType = 'error';
@@ -128,18 +145,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Odśwież dane po akcji
         $charData = $character->getByHashes($hash1, $hash2);
         $traits = $character->getTraits($charData['id']);
-        $friends = $character->getFriends($charData['id']);
+        
+        // Bezpieczne odświeżenie znajomych
+        try {
+            $friends = $character->getFriends($charData['id']);
+        } catch (Exception $e) {
+            $friends = [];
+        }
+        
         $weapons = $character->getWeapons($charData['id']);
         $recentBattles = $character->getRecentBattles($charData['id'], 10);
         $opponents = $character->getRandomOpponents($charData['id'], 10);
+        $formattedStats = $character->formatCharacterStats($charData);
     }
 }
 
-// Zapisz dane postaci w ciasteczku
-setCharacterCookie($charData);
+// Zapisz dane postaci w ciasteczku (tylko dla aktywnych postaci)
+if ($charData['status'] === 'active') {
+    setCharacterCookie($charData);
+}
 
 // Przypisz zmienne do szablonu
 $smarty->assign('character', $charData);
+$smarty->assign('formatted_stats', $formattedStats);
 $smarty->assign('traits', $traits);
 $smarty->assign('friends', $friends);
 $smarty->assign('weapons', $weapons);
@@ -147,6 +175,7 @@ $smarty->assign('recent_battles', $recentBattles);
 $smarty->assign('opponents', $opponents);
 $smarty->assign('message', $message);
 $smarty->assign('message_type', $messageType);
+$smarty->assign('show_pin', $showPin);
 $smarty->assign('is_mobile', isMobile());
 $smarty->assign('site_url', SITE_URL);
 

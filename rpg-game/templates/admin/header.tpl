@@ -15,10 +15,12 @@
             color: rgba(255,255,255,0.8);
             border-radius: 8px;
             margin: 2px 0;
+            transition: all 0.3s ease;
         }
         .sidebar .nav-link:hover, .sidebar .nav-link.active {
             background: rgba(255,255,255,0.1);
             color: white;
+            transform: translateX(5px);
         }
         .main-content {
             background: #f8f9fa;
@@ -27,10 +29,25 @@
         .card {
             border: none;
             box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
         }
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+        }
+        .btn-group-vertical .btn {
+            margin-bottom: 2px;
+        }
+        .table th {
+            border-top: none;
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .badge {
+            font-size: 0.75em;
         }
     </style>
 </head>
@@ -43,7 +60,7 @@
                     <i class="fas fa-shield-alt"></i> Admin Panel
                 </h4>
                 
-                <div class="text-white-50 small mb-2">
+                <div class="text-white-50 small mb-3">
                     Zalogowany jako: <strong class="text-white">{$admin_username}</strong>
                 </div>
                 
@@ -62,6 +79,9 @@
                     </a>
                     <a class="nav-link {if $smarty.server.PHP_SELF|basename == 'battles.php'}active{/if}" href="battles.php">
                         <i class="fas fa-fist-raised"></i> Walki
+                    </a>
+                    <a class="nav-link {if $smarty.server.PHP_SELF|basename == 'avatars.php'}active{/if}" href="avatars.php">
+                        <i class="fas fa-user-circle"></i> Avatary
                     </a>
                     <a class="nav-link {if $smarty.server.PHP_SELF|basename == 'settings.php'}active{/if}" href="settings.php">
                         <i class="fas fa-cog"></i> Ustawienia

@@ -134,63 +134,7 @@ class Character {
                 LEFT JOIN weapons w ON c.equipped_weapon_id = w.id
                 WHERE c.pin = ?";
         return $this->db->fetchOne($sql, [$pin]);
-    }
-    
-    public function updateLastLogin($characterId) {
-        $sql = "UPDATE characters SET last_login = NOW() WHERE id = ?";
-        $this->db->query($sql, [$characterId]);
-    }
-    
-    public function resetDailyPoints($characterId) {
-        $today = date('Y-m-d');
-        $character = $this->getById($characterId);
-        
-        $resetEnergy = false;
-        $resetChallenges = false;
-        
-        if ($character['last_energy_reset'] != $today) {
-            $resetEnergy = true;
-        }
-        
-        if ($character['last_challenge_reset'] != $today) {
-            $resetChallenges = true;
-        }
-        
-        if ($resetEnergy || $resetChallenges) {
-            $sql = "UPDATE characters SET ";
-            $params = [];
-            
-            if ($resetEnergy) {
-                $sql .= "energy_points = ?, last_energy_reset = ?";
-                $params[] = DAILY_ENERGY;
-                $params[] = $today;
-            }
-            
-            if ($resetChallenges) {
-                if ($resetEnergy) $sql .= ", ";
-                $sql .= "challenge_points = ?, last_challenge_reset = ?";
-                $params[] = DAILY_CHALLENGES;
-                $params[] = $today;
-            }
-            
-            $sql .= " WHERE id = ?";
-            $params[] = $characterId;
-            
-            $this->db->query($sql, $params);
-        }
-    }
-    
-    public function useEnergyPoint($characterId) {
-        $sql = "UPDATE characters SET energy_points = energy_points - 1 WHERE id = ? AND energy_points > 0";
-        $result = $this->db->query($sql, [$characterId]);
-        return $result->rowCount() > 0;
-    }
-    
-    public function useChallengePoint($characterId) {
-        $sql = "UPDATE characters SET challenge_points = challenge_points - 1 WHERE id = ? AND challenge_points > 0";
-        $result = $this->db->query($sql, [$characterId]);
-        return $result->rowCount() > 0;
-    }
+    }    
     
     public function addFriend($characterId, $friendId) {
         // Sprawdź czy nie próbuje dodać siebie
@@ -235,15 +179,6 @@ class Character {
         if ($result->rowCount() == 0) {
             throw new Exception("Ta postać nie jest w Twoich znajomych.");
         }
-    }
-    
-    public function getFriends($characterId) {
-        $sql = "SELECT c.*, cf.added_at 
-                FROM characters c 
-                JOIN character_friends cf ON c.id = cf.friend_id 
-                WHERE cf.character_id = ? 
-                ORDER BY cf.added_at DESC";
-        return $this->db->fetchAll($sql, [$characterId]);
     }
     
     public function getTraits($characterId) {
@@ -554,6 +489,307 @@ class Character {
                 LEFT JOIN weapons w ON c.equipped_weapon_id = w.id
                 WHERE c.id = ?";
         return $this->db->fetchOne($sql, [$id]);
+    }
+    /**
+     * Sprawdza czy postać ma status "banished" (zbieg)
+     */
+    public function isBanished($characterId) {
+        $character = $this->db->fetchOne("SELECT status FROM characters WHERE id = ?", [$characterId]);
+        return $character && $character['status'] === 'banished';
+    }
+    
+    /**
+     * Pobiera domyślny avatar dla danej płci
+     */
+    private function getDefaultAvatarByGender($gender) {
+        $sql = "SELECT image_path FROM avatar_images WHERE (gender = ? OR gender = 'unisex') AND is_active = 1 ORDER BY RAND() LIMIT 1";
+        $avatar = $this->db->fetchOne($sql, [$gender]);
+        
+        if ($avatar) {
+            return $avatar['image_path'];
+        }
+        
+        // Ostatni fallback
+        return '/images/avatars/default.png';
+    }
+    /**
+     * Sprawdza czy postać ma ciasteczko i jest prawidłowa
+     */
+    public function validateCharacterFromCookie() {
+        $cookieData = getCharacterFromCookie();
+        
+        if (!$cookieData) {
+            return null;
+        }
+        
+        // Sprawdź czy postać nadal istnieje i ma prawidłowy status
+        $character = $this->getByPin($cookieData['pin']);
+        
+        if (!$character) {
+            clearCharacterCookie();
+            return null;
+        }
+        
+        // Sprawdź status postaci
+        if (in_array($character['status'], ['deleted', 'banished'])) {
+            clearCharacterCookie();
+            return null;
+        }
+        
+        return $character;
+    }
+    
+    /**
+     * Sprawdza czy postać istnieje i ma prawidłowy status
+     */
+    public function checkCharacterAccess($hash1, $hash2) {
+        $character = $this->getByHashes($hash1, $hash2);
+        
+        if (!$character) {
+            return ['status' => 'not_found', 'message' => 'Postać nie istnieje.'];
+        }
+        
+        if (isset($character['status'])) {
+            if ($character['status'] === 'banished') {
+                return ['status' => 'banished', 'message' => 'Twoja postać została odebrana przez administratora.'];
+            }
+            
+            if ($character['status'] === 'deleted') {
+                return ['status' => 'deleted', 'message' => 'Twoja postać została usunięta.'];
+            }
+        }
+        
+        return ['status' => 'active', 'character' => $character];
+    }
+    
+    /**
+     * Oblicza ile doświadczenia potrzeba do następnego poziomu
+     */
+    public function getExperienceToNextLevel($character) {
+        $expPerLevel = getSetting('exp_per_level', 100);
+        $currentLevel = $character['level'];
+        $currentExp = $character['experience'];
+        
+        // Doświadczenie potrzebne na następny poziom
+        $expForNextLevel = $currentLevel * $expPerLevel;
+        
+        // Ile jeszcze potrzeba
+        $expNeeded = $expForNextLevel - $currentExp;
+        
+        // Postęp w procentach
+        $expForCurrentLevel = ($currentLevel - 1) * $expPerLevel;
+        $progressExp = $currentExp - $expForCurrentLevel;
+        $levelExpRange = $expForNextLevel - $expForCurrentLevel;
+        $progressPercent = $levelExpRange > 0 ? ($progressExp / $levelExpRange) * 100 : 0;
+        
+        return [
+            'exp_needed' => max(0, $expNeeded),
+            'exp_for_next_level' => $expForNextLevel,
+            'exp_for_current_level' => $expForCurrentLevel,
+            'progress_percent' => min(100, max(0, $progressPercent)),
+            'progress_exp' => $progressExp,
+            'level_exp_range' => $levelExpRange
+        ];
+    }
+    
+    /**
+     * Pobiera procenty dla pasków statusu
+     */
+    public function getStatusBarPercentages($character) {
+        return [
+            'health_percent' => ($character['health'] / max(1, $character['max_health'])) * 100,
+            'stamina_percent' => ($character['stamina'] / max(1, $character['max_stamina'])) * 100,
+            'armor_percent' => ($character['armor'] / max(1, $character['max_armor'])) * 100,
+        ];
+    }
+    
+    /**
+     * Pobiera avatar postaci lub domyślny
+     */
+    public function getCharacterAvatar($character) {
+        if (!empty($character['avatar_image'])) {
+            return $character['avatar_image'];
+        }
+        
+        // Fallback do domyślnego avatara
+        return '/images/avatars/default.png';
+    }
+    
+    /**
+     * Formatuje statystyki postaci dla wyświetlenia
+     */
+    public function formatCharacterStats($character) {
+        $expInfo = $this->getExperienceToNextLevel($character);
+        $statusBars = $this->getStatusBarPercentages($character);
+        
+        return [
+            'avatar' => $this->getCharacterAvatar($character),
+            'experience_info' => $expInfo,
+            'status_bars' => $statusBars,
+            'formatted_stats' => [
+                'health' => $character['health'] . '/' . $character['max_health'],
+                'stamina' => $character['stamina'] . '/' . $character['max_stamina'],
+                'armor' => $character['armor'] . '/' . $character['max_armor'],
+                'experience' => number_format($character['experience']) . ' exp',
+                'exp_to_next' => number_format($expInfo['exp_needed']) . ' exp do poziomu ' . ($character['level'] + 1)
+            ]
+        ];
+    }
+    
+    /**
+     * Bezpieczne pobieranie znajomych (obsługuje brak tabeli)
+     */
+    public function getFriends($characterId) {
+        try {
+            // Próbuj różne nazwy tabel dla znajomych
+            $tables = ['character_friends', 'friends'];
+            
+            foreach ($tables as $table) {
+                try {
+                    $sql = "SELECT c.*, f.created_at as friendship_date 
+                            FROM characters c 
+                            JOIN {$table} f ON c.id = f.friend_id 
+                            WHERE f.character_id = ? AND c.status = 'active'
+                            ORDER BY f.created_at DESC";
+                    
+                    return $this->db->fetchAll($sql, [$characterId]);
+                } catch (Exception $e) {
+                    // Spróbuj następną tabelę
+                    continue;
+                }
+            }
+            
+            // Jeśli żadna tabela nie działa, zwróć pustą tablicę
+            return [];
+            
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * Bezpieczne pobieranie znajomych z avatarami
+     */
+    public function getFriendsWithAvatars($characterId) {
+        $friends = $this->getFriends($characterId);
+        
+        // Dodaj avatary
+        foreach ($friends as &$friend) {
+            $friend['avatar'] = $this->getCharacterAvatar($friend);
+        }
+        
+        return $friends;
+    }
+    
+    /**
+     * Pobiera traity postaci z szczegółami
+     */
+    public function getTraitsWithDetails($characterId) {
+        try {
+            $sql = "
+                SELECT t.*, ct.obtained_at as equipped_at 
+                FROM character_traits ct
+                JOIN traits t ON ct.trait_id = t.id
+                WHERE ct.character_id = ?
+                ORDER BY t.type, t.name
+            ";
+            
+            return $this->db->fetchAll($sql, [$characterId]);
+        } catch (Exception $e) {
+            // Fallback do podstawowej metody getTraits
+            return $this->getTraits($characterId);
+        }
+    }
+    
+    /**
+     * Pobiera przeciwników z avatarami
+     */
+    public function getRandomOpponentsWithAvatars($characterId, $limit = 10) {
+        $sql = "
+            SELECT c.id, c.name, c.level, c.avatar_image, c.gender,
+                   c.health, c.max_health, c.damage, c.armor
+            FROM characters c 
+            WHERE c.id != ? AND (c.status = 'active' OR c.status IS NULL)
+            ORDER BY RAND() 
+            LIMIT ?
+        ";
+        
+        $opponents = $this->db->fetchAll($sql, [$characterId, $limit]);
+        
+        // Dodaj avatary
+        foreach ($opponents as &$opponent) {
+            $opponent['avatar'] = $this->getCharacterAvatar($opponent);
+        }
+        
+        return $opponents;
+    }
+    
+    /**
+     * Aktualizuje ostatnie logowanie
+     */
+    public function updateLastLogin($characterId) {
+        try {
+            $sql = "UPDATE characters SET last_login = NOW() WHERE id = ?";
+            $this->db->query($sql, [$characterId]);
+        } catch (Exception $e) {
+            // Cicha obsługa błędu
+        }
+    }
+    
+    /**
+     * Resetuje dzienne punkty
+     */
+    public function resetDailyPoints($characterId) {
+        try {
+            $today = date('Y-m-d');
+            
+            // Sprawdź czy trzeba zresetować punkty
+            $character = $this->getById($characterId);
+            if (!$character) return;
+            
+            $lastReset = $character['last_energy_reset'] ?? '1900-01-01';
+            
+            if ($lastReset < $today) {
+                $dailyEnergy = getSetting('daily_energy', 10);
+                $dailyChallenges = getSetting('daily_challenges', 2);
+                
+                $sql = "UPDATE characters SET 
+                        energy_points = ?, 
+                        challenge_points = ?, 
+                        last_energy_reset = ? 
+                        WHERE id = ?";
+                        
+                $this->db->query($sql, [$dailyEnergy, $dailyChallenges, $today, $characterId]);
+            }
+        } catch (Exception $e) {
+            // Cicha obsługa błędu
+        }
+    }
+    
+    /**
+     * Używa punkt energii
+     */
+    public function useEnergyPoint($characterId) {
+        try {
+            $sql = "UPDATE characters SET energy_points = energy_points - 1 WHERE id = ? AND energy_points > 0";
+            $result = $this->db->query($sql, [$characterId]);
+            return $result->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Używa punkt wyzwania
+     */
+    public function useChallengePoint($characterId) {
+        try {
+            $sql = "UPDATE characters SET challenge_points = challenge_points - 1 WHERE id = ? AND challenge_points > 0";
+            $result = $this->db->query($sql, [$characterId]);
+            return $result->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
 ?>

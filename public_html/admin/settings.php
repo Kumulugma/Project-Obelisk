@@ -2,8 +2,6 @@
 session_start();
 require_once '../../rpg-game/includes/config.php';
 require_once '../../rpg-game/includes/database.php';
-require_once '../../rpg-game/includes/Character.php';
-require_once '../../rpg-game/includes/Battle.php';
 require_once '../../rpg-game/includes/functions.php';
 require_once '../../rpg-game/vendor/autoload.php';
 
@@ -31,27 +29,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'daily_challenges' => (int)$_POST['daily_challenges'],
             'max_friends' => (int)$_POST['max_friends'],
             'exp_per_level' => (int)$_POST['exp_per_level'],
-            'trait_chance' => (float)$_POST['trait_chance'] / 100, // Konwersja z % na ułamek dziesiętny
+            'trait_chance' => (float)$_POST['trait_chance'] / 100, // Konwersja z procentów
             'recaptcha_site_key' => sanitizeInput($_POST['recaptcha_site_key']),
             'recaptcha_secret_key' => sanitizeInput($_POST['recaptcha_secret_key']),
-            
-            // NOWE USTAWIENIA REJESTRACJI
             'registration_mode' => sanitizeInput($_POST['registration_mode']),
             'registration_message' => sanitizeInput($_POST['registration_message']),
             'closed_registration_message' => sanitizeInput($_POST['closed_registration_message']),
             'invite_only_message' => sanitizeInput($_POST['invite_only_message'])
         ];
         
-        // Walidacja trybu rejestracji
-        if (!in_array($settings['registration_mode'], ['open', 'closed', 'invite_only'])) {
-            $settings['registration_mode'] = 'open';
-        }
-        
         try {
             foreach ($settings as $key => $value) {
-                $sql = "INSERT INTO system_settings (setting_key, setting_value) 
-                        VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?";
-                $db->query($sql, [$key, $value, $value]);
+                setSetting($key, $value);
             }
             $message = 'Ustawienia zostały zapisane.';
         } catch (Exception $e) {
@@ -110,88 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $error = 'Błąd zmiany statusu kodu: ' . $e->getMessage();
         }
-    } elseif (isset($_POST['add_avatar'])) {
-        $imagePath = sanitizeInput($_POST['image_path']);
-        $gender = sanitizeInput($_POST['gender']);
-        $isActive = isset($_POST['is_active']) ? 1 : 0;
-        
-        if (empty($imagePath) || !in_array($gender, ['male', 'female', 'unisex'])) {
-            $error = 'Ścieżka obrazka i płeć są wymagane.';
-        } else {
-            try {
-                $sql = "INSERT INTO avatar_images (image_path, gender, is_active) VALUES (?, ?, ?)";
-                $db->query($sql, [$imagePath, $gender, $isActive]);
-                $message = 'Avatar został dodany.';
-            } catch (Exception $e) {
-                $error = 'Błąd dodawania avatara: ' . $e->getMessage();
-            }
-        }
-    } elseif (isset($_POST['edit_avatar'])) {
-        $id = (int)$_POST['avatar_id'];
-        $imagePath = sanitizeInput($_POST['image_path']);
-        $gender = sanitizeInput($_POST['gender']);
-        $isActive = isset($_POST['is_active']) ? 1 : 0;
-        
-        if (empty($imagePath) || !in_array($gender, ['male', 'female', 'unisex'])) {
-            $error = 'Ścieżka obrazka i płeć są wymagane.';
-        } else {
-            try {
-                $sql = "UPDATE avatar_images SET image_path = ?, gender = ?, is_active = ? WHERE id = ?";
-                $db->query($sql, [$imagePath, $gender, $isActive, $id]);
-                $message = 'Avatar został zaktualizowany.';
-            } catch (Exception $e) {
-                $error = 'Błąd edycji avatara: ' . $e->getMessage();
-            }
-        }
-    } elseif (isset($_POST['delete_avatar'])) {
-        $id = (int)$_POST['avatar_id'];
-        
-        // Sprawdź czy avatar nie jest używany przez postacie
-        $inUse = $db->fetchOne("SELECT COUNT(*) as count FROM characters WHERE avatar_image = (SELECT image_path FROM avatar_images WHERE id = ?)", [$id]);
-        if ($inUse['count'] > 0) {
-            $error = 'Nie można usunąć avatara używanego przez postacie.';
-        } else {
-            try {
-                $db->query("DELETE FROM avatar_images WHERE id = ?", [$id]);
-                $message = 'Avatar został usunięty.';
-            } catch (Exception $e) {
-                $error = 'Błąd usuwania avatara: ' . $e->getMessage();
-            }
-        }
-    } elseif (isset($_POST['bulk_add_avatars'])) {
-        // Dodawanie wielu avatarów na raz
-        $avatarsData = $_POST['avatars_data'] ?? '';
-        $defaultGender = sanitizeInput($_POST['default_gender']);
-        
-        if (!empty($avatarsData)) {
-            $lines = explode("\n", trim($avatarsData));
-            $added = 0;
-            $errors = 0;
-            
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if (empty($line)) continue;
-                
-                // Format: /path/to/avatar.png|gender lub samo /path/to/avatar.png
-                $parts = explode('|', $line);
-                $imagePath = trim($parts[0]);
-                $gender = isset($parts[1]) ? trim($parts[1]) : $defaultGender;
-                
-                if (!in_array($gender, ['male', 'female', 'unisex'])) {
-                    $gender = $defaultGender;
-                }
-                
-                try {
-                    $sql = "INSERT INTO avatar_images (image_path, gender, is_active) VALUES (?, ?, 1)";
-                    $db->query($sql, [$imagePath, $gender]);
-                    $added++;
-                } catch (Exception $e) {
-                    $errors++;
-                }
-            }
-            
-            $message = "Dodano {$added} avatarów. Błędów: {$errors}";
-        }
     }
 }
 
@@ -212,8 +119,6 @@ $defaultSettings = [
     'trait_chance' => 0.2,
     'recaptcha_site_key' => '',
     'recaptcha_secret_key' => '',
-    
-    // NOWE DOMYŚLNE USTAWIENIA REJESTRACJI
     'registration_mode' => 'open',
     'registration_message' => 'Rejestracja jest obecnie otwarta!',
     'closed_registration_message' => 'Rejestracja jest tymczasowo zamknięta. Spróbuj ponownie później.',
@@ -228,48 +133,16 @@ $settings['trait_chance'] = $settings['trait_chance'] * 100;
 // Pobierz kody tajne
 $secretCodes = $db->fetchAll("
     SELECT sc.*, 
-           (SELECT COUNT(*) FROM characters WHERE created_at >= sc.created_at AND 'used_code_logic_here') as times_used
+           (SELECT COUNT(*) FROM characters WHERE created_at >= sc.created_at) as times_used
     FROM secret_codes sc
     ORDER BY created_at DESC
 ");
 
-// Pobierz avatary
-$avatars = $db->fetchAll("
-    SELECT a.*, 
-           (SELECT COUNT(*) FROM characters WHERE avatar_image = a.image_path) as usage_count
-    FROM avatar_images a 
-    ORDER BY a.gender, a.id
-");
-
 // Statystyki systemu
-$systemStats = [];
-$systemStats['total_characters'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
-$systemStats['active_users'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters WHERE last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)")['count'];
-$systemStats['total_battles'] = $db->fetchOne("SELECT COUNT(*) as count FROM battles")['count'];
-$systemStats['db_size'] = $db->fetchOne("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb FROM information_schema.tables WHERE table_schema = DATABASE()")['size_mb'] ?? 0;
-
-// Statystyki avatarów
-$avatarStats = [
-    'total' => count($avatars),
-    'active' => count(array_filter($avatars, function($a) { return $a['is_active']; })),
-    'male' => count(array_filter($avatars, function($a) { return $a['gender'] === 'male'; })),
-    'female' => count(array_filter($avatars, function($a) { return $a['gender'] === 'female'; })),
-    'unisex' => count(array_filter($avatars, function($a) { return $a['gender'] === 'unisex'; }))
-];
-
-// Statystyki kodów tajnych
-$codeStats = [
-    'total' => count($secretCodes),
-    'active' => count(array_filter($secretCodes, function($c) { return $c['is_active']; })),
-    'unlimited' => count(array_filter($secretCodes, function($c) { return $c['uses_left'] === -1; })),
-    'expired' => count(array_filter($secretCodes, function($c) { return $c['uses_left'] === 0; }))
-];
+$systemStats = getSystemStats();
 
 $smarty->assign('settings', $settings);
 $smarty->assign('secret_codes', $secretCodes);
-$smarty->assign('code_stats', $codeStats);
-$smarty->assign('avatars', $avatars);
-$smarty->assign('avatar_stats', $avatarStats);
 $smarty->assign('system_stats', $systemStats);
 $smarty->assign('message', $message);
 $smarty->assign('error', $error);

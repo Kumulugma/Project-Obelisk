@@ -33,7 +33,7 @@ $search = sanitizeInput($_GET['search'] ?? '');
 $sortBy = sanitizeInput($_GET['sort'] ?? 'created_at');
 $sortOrder = sanitizeInput($_GET['order'] ?? 'DESC');
 
-$allowedSorts = ['name', 'level', 'experience', 'created_at', 'last_login'];
+$allowedSorts = ['name', 'level', 'experience', 'created_at', 'last_login', 'status'];
 if (!in_array($sortBy, $allowedSorts)) $sortBy = 'created_at';
 if (!in_array($sortOrder, ['ASC', 'DESC'])) $sortOrder = 'DESC';
 
@@ -42,10 +42,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_character'])) {
         $id = (int)$_POST['character_id'];
         try {
-            $db->execute("DELETE FROM characters WHERE id = ?", [$id]);
-            $message = 'Postać została usunięta.';
+            // NAPRAWIONE: używamy query() zamiast execute()
+            $db->query("DELETE FROM character_traits WHERE character_id = ?", [$id]);
+            $db->query("DELETE FROM character_weapons WHERE character_id = ?", [$id]);
+            $db->query("DELETE FROM friends WHERE character_id = ? OR friend_id = ?", [$id, $id]);
+            $db->query("DELETE FROM battles WHERE attacker_id = ? OR defender_id = ?", [$id, $id]);
+            $db->query("DELETE FROM characters WHERE id = ?", [$id]);
+            $message = 'Postać została całkowicie usunięta z systemu.';
         } catch (Exception $e) {
             $error = 'Błąd usuwania postaci: ' . $e->getMessage();
+        }
+    } elseif (isset($_POST['banish_character'])) {
+        // NOWA FUNKCJA: odebranie postaci (status Zbieg)
+        $id = (int)$_POST['character_id'];
+        try {
+            $db->query("UPDATE characters SET status = 'banished', name = CONCAT(name, ' (Zbieg)') WHERE id = ? AND status != 'banished'", [$id]);
+            $message = 'Postać została odebrana graczowi. Status: Zbieg.';
+        } catch (Exception $e) {
+            $error = 'Błąd odebrania postaci: ' . $e->getMessage();
+        }
+    } elseif (isset($_POST['restore_character'])) {
+        // NOWA FUNKCJA: przywrócenie postaci
+        $id = (int)$_POST['character_id'];
+        try {
+            $db->query("UPDATE characters SET status = 'active', name = REPLACE(name, ' (Zbieg)', '') WHERE id = ?", [$id]);
+            $message = 'Postać została przywrócona.';
+        } catch (Exception $e) {
+            $error = 'Błąd przywracania postaci: ' . $e->getMessage();
+        }
+    } elseif (isset($_POST['regenerate_energy'])) {
+        // NOWA FUNKCJA: regeneracja energii
+        $id = (int)$_POST['character_id'];
+        try {
+            $dailyEnergy = getSetting('daily_energy', 10);
+            $dailyChallenges = getSetting('daily_challenges', 2);
+            
+            $db->query("UPDATE characters SET energy_points = ?, challenge_points = ? WHERE id = ?", 
+                      [$dailyEnergy, $dailyChallenges, $id]);
+            $message = 'Energia została zregenerowana do maksymalnych wartości.';
+        } catch (Exception $e) {
+            $error = 'Błąd regeneracji energii: ' . $e->getMessage();
         }
     } elseif (isset($_POST['edit_character'])) {
         $id = (int)$_POST['character_id'];
@@ -73,7 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                    "armor_penetration = ?, level = ?, experience = ?, " .
                    "energy_points = ?, challenge_points = ? WHERE id = ?";
             
-            $db->execute($sql, array_merge(array_values($data), [$id]));
+            // NAPRAWIONE: używamy query() zamiast execute()
+            $db->query($sql, array_merge(array_values($data), [$id]));
             $message = 'Postać została zaktualizowana.';
         } catch (Exception $e) {
             $error = 'Błąd edycji postaci: ' . $e->getMessage();
