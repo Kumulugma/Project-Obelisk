@@ -36,8 +36,18 @@ $searchResults = [];
 $searchQuery = '';
 $currentFriends = [];
 
-// Pobierz aktualnych znajomych
-$currentFriends = $character->getFriends($charData['id']);
+// Pobierz aktualnych znajomych z avatarami
+$db = Database::getInstance();
+$currentFriends = $db->fetchAll("
+    SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+           cf.added_at as friendship_date,
+           CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
+    FROM characters c 
+    JOIN character_friends cf ON c.id = cf.friend_id 
+    WHERE cf.character_id = ? 
+    ORDER BY c.last_login DESC
+", [$charData['id']]);
+
 $friendIds = array_column($currentFriends, 'id');
 
 // Obsługa akcji
@@ -51,16 +61,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Wpisz co najmniej 2 znaki aby wyszukać graczy.';
                     $messageType = 'warning';
                 } else {
-                    $searchResults = $character->searchByName($searchQuery, $charData['id']);
+                    // Wyszukaj graczy po nazwie z avatarami
+                    $searchResults = $db->fetchAll("
+                        SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+                               CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
+                        FROM characters c
+                        WHERE c.name LIKE ? AND c.id != ? AND c.status = 'active'
+                        ORDER BY c.last_login DESC
+                        LIMIT 20
+                    ", ['%' . $searchQuery . '%', $charData['id']]);
                     
                     if (empty($searchResults)) {
                         $message = 'Nie znaleziono graczy o imieniu "' . htmlspecialchars($searchQuery) . '".';
                         $messageType = 'info';
                     } else {
-                        // Dodaj informacje o statusie znajomości i online
+                        // Dodaj informacje o statusie znajomości
                         foreach ($searchResults as &$result) {
                             $result['is_friend'] = in_array($result['id'], $friendIds);
-                            $result['is_online'] = $character->isOnline($result['id']);
                             $result['last_seen'] = formatLastSeen($result['last_login']);
                         }
                         
@@ -74,25 +91,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $friendId = intval($_POST['friend_id'] ?? 0);
                 $character->addFriend($charData['id'], $friendId);
                 
-                $friendName = $character->getById($friendId)['name'];
+                $friendName = $db->fetchOne("SELECT name FROM characters WHERE id = ?", [$friendId])['name'];
                 $message = "Gracz {$friendName} został dodany do znajomych!";
                 $messageType = 'success';
                 
                 // Odśwież listę znajomych
-                $currentFriends = $character->getFriends($charData['id']);
+                $currentFriends = $db->fetchAll("
+                    SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+                           cf.added_at as friendship_date,
+                           CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
+                    FROM characters c 
+                    JOIN character_friends cf ON c.id = cf.friend_id 
+                    WHERE cf.character_id = ? 
+                    ORDER BY c.last_login DESC
+                ", [$charData['id']]);
                 $friendIds = array_column($currentFriends, 'id');
                 break;
                 
             case 'remove_friend':
                 $friendId = intval($_POST['friend_id'] ?? 0);
-                $friendName = $character->getById($friendId)['name'];
+                $friendName = $db->fetchOne("SELECT name FROM characters WHERE id = ?", [$friendId])['name'];
                 $character->removeFriend($charData['id'], $friendId);
                 
                 $message = "Gracz {$friendName} został usunięty ze znajomych.";
                 $messageType = 'success';
                 
                 // Odśwież listę znajomych
-                $currentFriends = $character->getFriends($charData['id']);
+                $currentFriends = $db->fetchAll("
+                    SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+                           cf.added_at as friendship_date,
+                           CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
+                    FROM characters c 
+                    JOIN character_friends cf ON c.id = cf.friend_id 
+                    WHERE cf.character_id = ? 
+                    ORDER BY c.last_login DESC
+                ", [$charData['id']]);
                 $friendIds = array_column($currentFriends, 'id');
                 break;
         }
@@ -131,7 +164,7 @@ $smarty->assign('friends_count', $friendsCount);
 $smarty->assign('max_friends', $maxFriends);
 $smarty->assign('online_friends_count', count($onlineFriends));
 $smarty->assign('is_mobile', isMobile());
-$smarty->assign('site_url', SITE_URL);
+$smarty->assign('site_url', defined('SITE_URL') ? SITE_URL : '');
 
 $smarty->display('friends.tpl');
 ?>

@@ -141,75 +141,6 @@ class Battle {
         return max(0.1, min(0.9, $hitChance));
     }
     
-    private function performAttack($attacker, $defender, $traits, $round) {
-        $hitChance = $this->calculateHitChance($attacker['dexterity'], $defender['agility']);
-        $hit = (mt_rand() / mt_getrandmax()) < $hitChance;
-        
-        $damage = 0;
-        $action = '';
-        $newEffects = [];
-        $traitsActivated = [];
-        
-        $defenderTraits = $this->getCharacterTraits($defender['id']);
-        foreach ($defenderTraits as $trait) {
-            if ($trait['name'] === 'Parowanie' && $trait['type'] === 'active') {
-                if ((mt_rand() / mt_getrandmax()) < $trait['trigger_chance']) {
-                    return [
-                        'defender' => $defender,
-                        'action' => 'Atak sparowany!',
-                        'damage' => 0,
-                        'armor_damage' => 0,
-                        'log' => [
-                            'round' => $round,
-                            'type' => 'parry',
-                            'character' => $defender['name'],
-                            'message' => 'Sparował atak!'
-                        ]
-                    ];
-                }
-            }
-        }
-        
-        if ($hit) {
-            $baseDamage = $attacker['damage'] + ($attacker['weapon_damage'] ?? 0);
-            $damage = max(1, $baseDamage - $defender['armor']);
-            
-            $action = "Zadał {$damage} obrażeń";
-            
-            foreach ($traits as $trait) {
-                if ($trait['type'] === 'active' && (mt_rand() / mt_getrandmax()) < $trait['trigger_chance']) {
-                    switch ($trait['name']) {
-                        case 'Krytyczne Uderzenie':
-                            $damage = floor($damage * 1.5);
-                            $action .= " (krytyk!)";
-                            $traitsActivated[] = $trait['name'];
-                            break;
-                        case 'Przebicie Pancerza':
-                            $damage += floor($defender['armor'] * 0.5);
-                            $action .= " (przebicie!)";
-                            $traitsActivated[] = $trait['name'];
-                            break;
-                    }
-                }
-            }
-        } else {
-            $action = "Chybił";
-        }
-        
-        return [
-            'attacker' => $attacker,
-            'damage' => $damage,
-            'armor_damage' => 0,
-            'log' => [
-                'round' => $round,
-                'type' => $hit ? 'hit' : 'miss',
-                'character' => $attacker['name'],
-                'message' => $action,
-                'traits_activated' => $traitsActivated
-            ]
-        ];
-    }
-    
     private function prepareCharacterStats($character) {
         return [
             'health' => $character['health'],
@@ -294,22 +225,117 @@ class Battle {
         return null;
     }
     
+    /**
+     * Zapisuje walkę do bazy danych
+     */
     private function saveBattle($attackerId, $defenderId, $battleResult, $battleType) {
-        $sql = "INSERT INTO battles (attacker_id, defender_id, winner_id, battle_log, experience_gained, weapon_dropped, trait_dropped, battle_type) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        // Upewnij się, że battle_log jest prawidłowo sformatowany
+        $battleLog = $battleResult['battle_log'] ?? [];
+        
+        // Jeśli battle_log jest pusty, stwórz podstawowy log
+        if (empty($battleLog)) {
+            $attacker = $this->getCharacterForBattle($attackerId);
+            $defender = $this->getCharacterForBattle($defenderId);
+            
+            $battleLog = [
+                [
+                    'type' => 'info',
+                    'message' => 'Walka rozpoczęta',
+                    'round' => 0
+                ],
+                [
+                    'type' => 'attack',
+                    'round' => 1,
+                    'attacker' => $attacker['name'] ?? 'Atakujący',
+                    'defender' => $defender['name'] ?? 'Obrońca',
+                    'action' => 'Walka w toku',
+                    'damage' => 0,
+                    'defender_health' => $defender['health'] ?? 100,
+                    'defender_armor' => $defender['armor'] ?? 0
+                ]
+            ];
+            
+            if ($battleResult['winner']) {
+                $battleLog[] = [
+                    'type' => 'result',
+                    'message' => 'Zwycięzca: ' . $battleResult['winner']['name'],
+                    'round' => 'Final'
+                ];
+            }
+        }
+        
+        // Konwertuj log do JSON
+        $battleLogJson = json_encode($battleLog, JSON_UNESCAPED_UNICODE);
+        
+        $sql = "INSERT INTO battles (attacker_id, defender_id, winner_id, battle_log, experience_gained, weapon_dropped, trait_dropped, battle_type, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $this->db->query($sql, [
             $attackerId,
             $defenderId,
-            $battleResult['winner']['id'],
-            json_encode($battleResult['battle_log']),
-            $battleResult['experience_gained'],
-            $battleResult['weapon_dropped'],
-            $battleResult['trait_dropped'],
+            $battleResult['winner']['id'] ?? null,
+            $battleLogJson,
+            $battleResult['experience_gained'] ?? 0,
+            $battleResult['weapon_dropped'] ?? null,
+            $battleResult['trait_dropped'] ?? null,
             $battleType
         ]);
         
         return $this->db->lastInsertId();
+    }
+    
+    /**
+     * Poprawiona metoda performAttack z lepszym logowaniem
+     */
+    private function performAttack($attacker, $defender, $traits, $round) {
+        $hitChance = $this->calculateHitChance($attacker['dexterity'], $defender['agility']);
+        $hit = (mt_rand() / mt_getrandmax()) < $hitChance;
+        
+        $damage = 0;
+        $action = '';
+        $traitsActivated = [];
+        
+        if ($hit) {
+            $baseDamage = $attacker['damage'] + ($attacker['weapon_damage'] ?? 0);
+            $damage = max(1, $baseDamage - $defender['armor']);
+            $action = "Zadał {$damage} obrażeń";
+            
+            // Sprawdź traity
+            foreach ($traits as $trait) {
+                if ($trait['type'] === 'active' && (mt_rand() / mt_getrandmax()) < $trait['trigger_chance']) {
+                    switch ($trait['name']) {
+                        case 'Krytyczne Uderzenie':
+                            $damage = floor($damage * 1.5);
+                            $action = "Zadał {$damage} obrażeń (krytyk!)";
+                            $traitsActivated[] = ['name' => $trait['name'], 'description' => $trait['description']];
+                            break;
+                        case 'Przebicie Pancerza':
+                            $damage += floor($defender['armor'] * 0.5);
+                            $action = "Zadał {$damage} obrażeń (przebicie!)";
+                            $traitsActivated[] = ['name' => $trait['name'], 'description' => $trait['description']];
+                            break;
+                    }
+                }
+            }
+        } else {
+            $action = "Chybił";
+        }
+        
+        return [
+            'damage' => $damage,
+            'armor_damage' => 0,
+            'log' => [
+                'round' => $round,
+                'type' => 'attack',
+                'attacker' => $attacker['name'] ?? 'Nieznany',
+                'defender' => $defender['name'] ?? 'Nieznany',
+                'action' => $action,
+                'damage' => $damage,
+                'defender_health' => max(0, $defender['health'] - $damage),
+                'defender_armor' => $defender['armor'],
+                'traits_activated' => $traitsActivated
+            ]
+        ];
     }
     
     // ZMIENIONE: Sprawiedliwy system nagród
@@ -375,24 +401,44 @@ class Battle {
         }
     }
     
+    /**
+     * Pobiera szczegóły walki z dodatkowymi informacjami
+     */
     public function getBattleDetails($battleId) {
         $sql = "SELECT b.*, 
-                       a.name as attacker_name, 
-                       d.name as defender_name,
+                       a.name as attacker_name, a.level as attacker_level, a.avatar_image as attacker_avatar,
+                       a.damage as attacker_damage, a.dexterity as attacker_dexterity, a.agility as attacker_agility,
+                       d.name as defender_name, d.level as defender_level, d.avatar_image as defender_avatar,
+                       d.damage as defender_damage, d.dexterity as defender_dexterity, d.agility as defender_agility,
+                       d.armor as defender_armor,
                        w.name as winner_name,
-                       wd.name as weapon_name,
-                       t.name as trait_name
+                       wd.name as weapon_name, wd.damage as weapon_damage, wd.armor_penetration as weapon_armor_penetration,
+                       t.name as trait_name, t.description as trait_description,
+                       aw.name as attacker_weapon_name,
+                       dw.name as defender_weapon_name
                 FROM battles b
                 JOIN characters a ON b.attacker_id = a.id
                 JOIN characters d ON b.defender_id = d.id
                 LEFT JOIN characters w ON b.winner_id = w.id
                 LEFT JOIN weapons wd ON b.weapon_dropped = wd.id
                 LEFT JOIN traits t ON b.trait_dropped = t.id
+                LEFT JOIN weapons aw ON a.equipped_weapon_id = aw.id
+                LEFT JOIN weapons dw ON d.equipped_weapon_id = dw.id
                 WHERE b.id = ?";
         
         $battle = $this->db->fetchOne($sql, [$battleId]);
+        
         if ($battle) {
-            $battle['battle_log'] = json_decode($battle['battle_log'], true);
+            // Parsuj log walki
+            $battle['battle_log'] = json_decode($battle['battle_log'], true) ?? [];
+            
+            // Dodaj domyślne avatary jeśli brak
+            $battle['attacker_avatar'] = $battle['attacker_avatar'] ?: '/images/avatars/default.png';
+            $battle['defender_avatar'] = $battle['defender_avatar'] ?: '/images/avatars/default.png';
+            
+            // Informacje o broniach
+            $battle['attacker_weapon_name'] = $battle['attacker_weapon_name'] ?: 'Pięść';
+            $battle['defender_weapon_name'] = $battle['defender_weapon_name'] ?: 'Pięść';
         }
         
         return $battle;

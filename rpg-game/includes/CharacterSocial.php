@@ -31,13 +31,14 @@ class CharacterSocial {
         }
         
         // Sprawdź limit znajomych
+        $maxFriends = getSystemSetting('max_friends', 50);
         $friendsCount = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM character_friends WHERE character_id = ?",
             [$characterId]
         )['count'];
         
-        if ($friendsCount >= MAX_FRIENDS) {
-            throw new Exception("Osiągnięto maksymalną liczbę znajomych.");
+        if ($friendsCount >= $maxFriends) {
+            throw new Exception("Osiągnięto maksymalną liczbę znajomych ({$maxFriends}).");
         }
         
         // Sprawdź czy postać istnieje
@@ -63,10 +64,12 @@ class CharacterSocial {
     }
     
     /**
-     * Pobiera listę znajomych
+     * Pobiera listę znajomych Z AVATARAMI
      */
     public function getFriends($characterId) {
-        $sql = "SELECT c.*, cf.added_at 
+        $sql = "SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+                       cf.added_at,
+                       CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
                 FROM characters c 
                 JOIN character_friends cf ON c.id = cf.friend_id 
                 WHERE cf.character_id = ? 
@@ -192,30 +195,24 @@ class CharacterSocial {
         }
         
         // Zaktualizuj postać
-        $updateSql = "UPDATE characters SET equipped_weapon_id = ?";
-        $updateParams = [$weaponId];
-        
-        if ($weaponId != 1) {
-            $updateSql .= ", last_weapon_change = ?";
-            $updateParams[] = date('Y-m-d');
-        }
-        
-        $updateSql .= " WHERE id = ?";
-        $updateParams[] = $characterId;
-        
-        $this->db->query($updateSql, $updateParams);
+        $sql = "UPDATE characters SET equipped_weapon_id = ? WHERE id = ?";
+        $this->db->query($sql, [$weaponId, $characterId]);
     }
     
     /**
-     * Pobiera bronie postaci
+     * Pobiera bronie postaci Z DODATKOWYMI INFORMACJAMI
      */
     public function getWeapons($characterId) {
-        $sql = "SELECT w.*, cw.is_equipped, cw.obtained_at
+        $sql = "SELECT w.*, 
+                       CASE WHEN cw.weapon_id IS NOT NULL THEN 1 ELSE 0 END as owned,
+                       cw.obtained_at,
+                       CASE WHEN c.equipped_weapon_id = w.id THEN 1 ELSE 0 END as is_equipped
                 FROM weapons w
-                JOIN character_weapons cw ON w.id = cw.weapon_id
-                WHERE cw.character_id = ?
-                ORDER BY cw.obtained_at DESC";
-        return $this->db->fetchAll($sql, [$characterId]);
+                LEFT JOIN character_weapons cw ON w.id = cw.weapon_id AND cw.character_id = ?
+                LEFT JOIN characters c ON c.id = ?
+                WHERE w.id = 1 OR cw.weapon_id IS NOT NULL
+                ORDER BY is_equipped DESC, cw.obtained_at DESC";
+        return $this->db->fetchAll($sql, [$characterId, $characterId]);
     }
     
     /**
@@ -238,12 +235,13 @@ class CharacterSocial {
      * Sprawdza czy postać może dodać więcej znajomych
      */
     public function canAddMoreFriends($characterId) {
+        $maxFriends = getSystemSetting('max_friends', 50);
         $friendsCount = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM character_friends WHERE character_id = ?",
             [$characterId]
         )['count'];
         
-        return $friendsCount < MAX_FRIENDS;
+        return $friendsCount < $maxFriends;
     }
     
     /**
@@ -261,6 +259,7 @@ class CharacterSocial {
      * Pobiera statystyki społeczne postaci
      */
     public function getSocialStats($characterId) {
+        $maxFriends = getSystemSetting('max_friends', 50);
         $friendsCount = $this->getFriendsCount($characterId);
         $traitsCount = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM character_traits WHERE character_id = ?",
@@ -275,8 +274,34 @@ class CharacterSocial {
             'friends_count' => $friendsCount,
             'traits_count' => $traitsCount,
             'weapons_count' => $weaponsCount,
-            'can_add_friends' => $friendsCount < MAX_FRIENDS
+            'can_add_friends' => $friendsCount < $maxFriends,
+            'max_friends' => $maxFriends
         ];
+    }
+    
+    /**
+     * NOWA METODA: Wyszukuje postacie po nazwie
+     */
+    public function searchCharactersByName($searchQuery, $excludeCharacterId, $limit = 20) {
+        $sql = "SELECT c.id, c.name, c.level, c.gender, c.avatar_image, c.last_login,
+                       CASE WHEN c.last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online
+                FROM characters c
+                WHERE c.name LIKE ? AND c.id != ? AND c.status = 'active'
+                ORDER BY c.last_login DESC
+                LIMIT ?";
+        return $this->db->fetchAll($sql, ['%' . $searchQuery . '%', $excludeCharacterId, $limit]);
+    }
+    
+    /**
+     * Sprawdza czy postać jest online
+     */
+    public function isOnline($characterId) {
+        $result = $this->db->fetchOne(
+            "SELECT CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) THEN 1 ELSE 0 END as is_online 
+             FROM characters WHERE id = ?",
+            [$characterId]
+        );
+        return $result ? $result['is_online'] : false;
     }
 }
 

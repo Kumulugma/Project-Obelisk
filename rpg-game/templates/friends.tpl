@@ -275,12 +275,6 @@
                         <a href="/{$character.hash1}/{$character.hash2}" class="btn btn-primary">
                             <i class="fas fa-user"></i> Profil
                         </a>
-                        <a href="/weapons/{$character.hash1}/{$character.hash2}" class="btn btn-secondary">
-                            <i class="fas fa-sword"></i> Bronie
-                        </a>
-                        <a href="/battles/{$character.hash1}/{$character.hash2}" class="btn btn-info">
-                            <i class="fas fa-history"></i> Historia walk
-                        </a>
                     </div>
                 </div>
             </div>

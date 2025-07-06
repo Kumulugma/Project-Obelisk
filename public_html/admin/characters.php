@@ -71,11 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Błąd przywracania postaci: ' . $e->getMessage();
         }
     } elseif (isset($_POST['regenerate_energy'])) {
-        // NOWA FUNKCJA: regeneracja energii
+        // NAPRAWIONE: użyj getSystemSetting zamiast getSetting
         $id = (int)$_POST['character_id'];
         try {
-            $dailyEnergy = getSetting('daily_energy', 10);
-            $dailyChallenges = getSetting('daily_challenges', 2);
+            $dailyEnergy = getSystemSetting('daily_energy', 10);
+            $dailyChallenges = getSystemSetting('daily_challenges', 2);
             
             $db->query("UPDATE characters SET energy_points = ?, challenge_points = ? WHERE id = ?", 
                       [$dailyEnergy, $dailyChallenges, $id]);

@@ -176,98 +176,6 @@
                             </div>
                         </td>
                     </tr>
-                    
-                    <!-- Modal edycji -->
-                    <div class="modal fade" id="editModal{$character.id}" tabindex="-1">
-                        <div class="modal-dialog modal-lg">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Edytuj postać: {$character.name}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="POST">
-                                    <div class="modal-body">
-                                        <input type="hidden" name="character_id" value="{$character.id}">
-                                        
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <h6>Zdrowie i Wytrzymałość</h6>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Zdrowie</label>
-                                                    <input type="number" class="form-control" name="health" value="{$character.health}" min="0">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Maksymalne zdrowie</label>
-                                                    <input type="number" class="form-control" name="max_health" value="{$character.max_health}" min="1">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Wytrzymałość</label>
-                                                    <input type="number" class="form-control" name="stamina" value="{$character.stamina}" min="0">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Maksymalna wytrzymałość</label>
-                                                    <input type="number" class="form-control" name="max_stamina" value="{$character.max_stamina}" min="1">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6>Umiejętności</h6>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Obrażenia</label>
-                                                    <input type="number" class="form-control" name="damage" value="{$character.damage}" min="1">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Zręczność</label>
-                                                    <input type="number" class="form-control" name="dexterity" value="{$character.dexterity}" min="1">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Zwinność</label>
-                                                    <input type="number" class="form-control" name="agility" value="{$character.agility}" min="1">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6>Pancerz</h6>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Pancerz</label>
-                                                    <input type="number" class="form-control" name="armor" value="{$character.armor}" min="0">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Maksymalny pancerz</label>
-                                                    <input type="number" class="form-control" name="max_armor" value="{$character.max_armor}" min="1">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Przebicie pancerza</label>
-                                                    <input type="number" class="form-control" name="armor_penetration" value="{$character.armor_penetration}" min="0">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6>Poziom i Energia</h6>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Poziom</label>
-                                                    <input type="number" class="form-control" name="level" value="{$character.level}" min="1">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Doświadczenie</label>
-                                                    <input type="number" class="form-control" name="experience" value="{$character.experience}" min="0">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Punkty energii</label>
-                                                    <input type="number" class="form-control" name="energy_points" value="{$character.energy_points}" min="0">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Punkty wyzwań</label>
-                                                    <input type="number" class="form-control" name="challenge_points" value="{$character.challenge_points}" min="0">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
-                                        <button type="submit" name="edit_character" class="btn btn-primary">Zapisz zmiany</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
                     {foreachelse}
                     <tr>
                         <td colspan="8" class="text-center text-muted">Brak postaci do wyświetlenia</td>
@@ -317,5 +225,99 @@
         {/if}
     </div>
 </div>
+
+<!-- Modale edycji - TYLKO TUTAJ, BEZ DUPLIKACJI -->
+{foreach $characters as $character}
+<div class="modal fade" id="editModal{$character.id}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edytuj postać: {$character.name}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="character_id" value="{$character.id}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Zdrowie i Wytrzymałość</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Zdrowie</label>
+                                <input type="number" class="form-control" name="health" value="{$character.health}" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Maksymalne zdrowie</label>
+                                <input type="number" class="form-control" name="max_health" value="{$character.max_health}" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Wytrzymałość</label>
+                                <input type="number" class="form-control" name="stamina" value="{$character.stamina}" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Maksymalna wytrzymałość</label>
+                                <input type="number" class="form-control" name="max_stamina" value="{$character.max_stamina}" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Umiejętności</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Obrażenia</label>
+                                <input type="number" class="form-control" name="damage" value="{$character.damage}" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Zręczność</label>
+                                <input type="number" class="form-control" name="dexterity" value="{$character.dexterity}" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Zwinność</label>
+                                <input type="number" class="form-control" name="agility" value="{$character.agility}" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Pancerz</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Pancerz</label>
+                                <input type="number" class="form-control" name="armor" value="{$character.armor}" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Maksymalny pancerz</label>
+                                <input type="number" class="form-control" name="max_armor" value="{$character.max_armor}" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Przebicie pancerza</label>
+                                <input type="number" class="form-control" name="armor_penetration" value="{$character.armor_penetration}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Poziom i Energia</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Poziom</label>
+                                <input type="number" class="form-control" name="level" value="{$character.level}" min="1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Doświadczenie</label>
+                                <input type="number" class="form-control" name="experience" value="{$character.experience}" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Punkty energii</label>
+                                <input type="number" class="form-control" name="energy_points" value="{$character.energy_points}" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Punkty wyzwań</label>
+                                <input type="number" class="form-control" name="challenge_points" value="{$character.challenge_points}" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" name="edit_character" class="btn btn-primary">Zapisz zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{/foreach}
 
 {include file="footer.tpl"}

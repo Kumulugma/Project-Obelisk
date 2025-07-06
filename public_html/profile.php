@@ -24,7 +24,7 @@ if (empty($hash1) || empty($hash2)) {
     exit;
 }
 
-// Sprawdź czy postać istnieje - zastąpione bezpośrednim wywołaniem getByHashes
+// Sprawdź czy postać istnieje
 $charData = $character->getByHashes($hash1, $hash2);
 if (!$charData) {
     // Spróbuj automatycznego logowania z ciasteczka
@@ -50,12 +50,29 @@ $character->resetDailyPoints($charData['id']);
 // Pobierz zaktualizowane dane
 $charData = $character->getByHashes($hash1, $hash2);
 
-// Pobierz dane do wyświetlenia
+// NAPRAWKA: Pobierz dane do wyświetlenia z avatarami
 $traits = $character->getTraits($charData['id']);
 $friends = $character->getFriends($charData['id']);
 $weapons = $character->getWeapons($charData['id']);
 $recentBattles = $character->getRecentBattles($charData['id'], 10);
-$opponents = $character->getRandomOpponents($charData['id'], 10);
+
+// NAPRAWKA: Pobierz przeciwników z avatarami
+$db = Database::getInstance();
+$opponents = $db->fetchAll("
+    SELECT c.id, c.name, c.level, c.avatar_image
+    FROM characters c 
+    WHERE c.id != ? AND c.status = 'active'
+    ORDER BY RAND() 
+    LIMIT 10
+", [$charData['id']]);
+
+// NAPRAWKA: Dodaj avatar_image do znajomych jeśli nie mają
+foreach ($friends as &$friend) {
+    if (!isset($friend['avatar_image']) || empty($friend['avatar_image'])) {
+        $friendData = $db->fetchOne("SELECT avatar_image FROM characters WHERE id = ?", [$friend['id']]);
+        $friend['avatar_image'] = $friendData['avatar_image'] ?? '/images/avatars/default.png';
+    }
+}
 
 // Obsługa akcji
 $message = '';
@@ -154,7 +171,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $friends = $character->getFriends($charData['id']);
         $weapons = $character->getWeapons($charData['id']);
         $recentBattles = $character->getRecentBattles($charData['id'], 10);
-        $opponents = $character->getRandomOpponents($charData['id'], 10);
+        
+        // Odśwież przeciwników
+        $opponents = $db->fetchAll("
+            SELECT c.id, c.name, c.level, c.avatar_image
+            FROM characters c 
+            WHERE c.id != ? AND c.status = 'active'
+            ORDER BY RAND() 
+            LIMIT 10
+        ", [$charData['id']]);
+        
+        // Odśwież avatary znajomych
+        foreach ($friends as &$friend) {
+            if (!isset($friend['avatar_image']) || empty($friend['avatar_image'])) {
+                $friendData = $db->fetchOne("SELECT avatar_image FROM characters WHERE id = ?", [$friend['id']]);
+                $friend['avatar_image'] = $friendData['avatar_image'] ?? '/images/avatars/default.png';
+            }
+        }
     }
 }
 
@@ -171,6 +204,10 @@ if ($flashMessage && empty($message)) {
     $messageType = $flashMessage['type'];
 }
 
+// Sprawdź czy pokazać PIN (z ciasteczka)
+$cookieData = getCharacterFromCookie();
+$showPin = $cookieData && isset($cookieData['pin']) && $cookieData['pin'] === $charData['pin'];
+
 // Przypisz zmienne do szablonu
 $smarty->assign('character', $charData);
 $smarty->assign('traits', $traits);
@@ -181,6 +218,7 @@ $smarty->assign('opponents', $opponents);
 $smarty->assign('available_avatars', $availableAvatars);
 $smarty->assign('message', $message);
 $smarty->assign('message_type', $messageType);
+$smarty->assign('show_pin', $showPin);
 $smarty->assign('is_mobile', isMobile());
 $smarty->assign('site_url', defined('SITE_URL') ? SITE_URL : '');
 

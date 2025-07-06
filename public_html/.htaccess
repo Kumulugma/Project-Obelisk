@@ -1,5 +1,11 @@
 RewriteEngine On
 
+# Przekierowania dla znajomych
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/admin
+RewriteRule ^friends/([a-f0-9]{64})/([a-f0-9]{64})/?$ friends.php?hash1=$1&hash2=$2 [QSA,L]
+
 # Przekierowania dla profili postaci
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

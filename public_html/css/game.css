@@ -313,3 +313,462 @@ body {
         border-color: #6c757d;
     }
 }
+
+/* Domyślne avatary CSS - dodaj do końca game.css */
+
+.character-avatar, .character-mini-avatar {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.character-avatar::before, .character-mini-avatar::before {
+    content: "👤";
+    font-size: 1.5em;
+}
+
+.character-mini-avatar::before {
+    font-size: 1.2em;
+}
+
+/* Avatar dla różnych płci */
+.avatar-male {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.avatar-female {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+}
+
+.avatar-male::before {
+    content: "♂";
+    font-size: 1.8em;
+}
+
+.avatar-female::before {
+    content: "♀";
+    font-size: 1.8em;
+}
+
+/* Status online */
+.avatar-online::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Efekt hover dla avatarów */
+.character-avatar:hover, .character-mini-avatar:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Lepsze wyświetlanie obrazków avatar */
+.character-avatar img, .character-mini-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+/* Animacja ładowania */
+.avatar-loading {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Dodatkowe efekty dla strony battle - dodać na koniec game.css */
+
+/* Efekty cząsteczek w tle */
+.battle-arena::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="1" fill="rgba(255,255,255,0.1)"><animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite"/></circle><circle cx="80" cy="30" r="1.5" fill="rgba(255,255,255,0.1)"><animate attributeName="opacity" values="0;1;0" dur="4s" repeatCount="indefinite"/></circle><circle cx="40" cy="70" r="1" fill="rgba(255,255,255,0.1)"><animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/></circle></svg>');
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Głębszy efekt glassmorphism */
+.fighter-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* Efekt świecenia dla zwycięzcy */
+.fighter-card.winner::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #28a745, #20c997, #28a745, #20c997);
+    border-radius: inherit;
+    z-index: -1;
+    animation: victoryGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes victoryGlow {
+    0% { opacity: 0.5; transform: scale(1); }
+    100% { opacity: 0.8; transform: scale(1.01); }
+}
+
+/* Animacja VS */
+.vs-indicator {
+    animation: vsRotate 3s ease-in-out infinite;
+}
+
+@keyframes vsRotate {
+    0%, 100% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+    50% { transform: translate(-50%, -50%) rotate(5deg) scale(1.1); }
+}
+
+/* Efekt pisania dla logów */
+.battle-round.typing {
+    overflow: hidden;
+    border-right: 3px solid #007bff;
+    animation: typing 1s steps(40, end), blink-cursor 0.5s step-end infinite;
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes blink-cursor {
+    from, to { border-color: transparent; }
+    50% { border-color: #007bff; }
+}
+
+/* Efekt highlight dla obrażeń */
+.damage-indicator {
+    animation: damageFlash 0.6s ease-out;
+    position: relative;
+}
+
+.damage-indicator::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: radial-gradient(circle, rgba(220, 53, 69, 0.3), transparent);
+    border-radius: inherit;
+    animation: damageRipple 0.6s ease-out;
+}
+
+@keyframes damageFlash {
+    0% { background: #ff1744; transform: scale(1.2); }
+    50% { background: #dc3545; transform: scale(1.1); }
+    100% { background: #dc3545; transform: scale(1); }
+}
+
+@keyframes damageRipple {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Efekt dla trait'ów */
+.trait-activation {
+    position: relative;
+    overflow: hidden;
+}
+
+.trait-activation::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: traitShine 2s ease-in-out infinite;
+}
+
+@keyframes traitShine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Efekt pulsowania dla ważnych elementów */
+.exp-gain {
+    animation: expPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes expPulse {
+    0% { transform: scale(1); box-shadow: 0 2px 5px rgba(255, 193, 7, 0.3); }
+    100% { transform: scale(1.05); box-shadow: 0 4px 15px rgba(255, 193, 7, 0.6); }
+}
+
+/* Smooth scroll dla container'a */
+.battle-log-container {
+    scroll-behavior: smooth;
+}
+
+/* Hover effects dla przycisków */
+.action-buttons .btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-buttons .btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    transform: translate(-50%, -50%);
+}
+
+.action-buttons .btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Parallax effect dla tła */
+@media (min-width: 768px) {
+    .battle-arena {
+        background-attachment: fixed;
+    }
+}
+
+/* Loading skeleton dla avatarów */
+.fighter-avatar[src=""] {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: avatarLoading 1.5s infinite;
+}
+
+@keyframes avatarLoading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Efekt "typewriter" dla wyników */
+.result-banner h3 {
+    overflow: hidden;
+    border-right: 3px solid #28a745;
+    white-space: nowrap;
+    animation: typewriter 2s steps(40, end), removeCursor 0.1s 2s forwards;
+}
+
+@keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes removeCursor {
+    to { border-color: transparent; }
+}
+
+/* Confetti effect dla zwycięzcy */
+.result-banner::after {
+    content: '🎉 ✨ 🎊 ⭐ 🎉 ✨ 🎊 ⭐';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 1.2em;
+    animation: confetti 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes confetti {
+    0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%, 90% { opacity: 1; }
+    50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+/* Dark mode friendly adjustments */
+@media (prefers-color-scheme: dark) {
+    .battle-log-container {
+        background: rgba(33, 37, 41, 0.95);
+        color: #f8f9fa;
+    }
+    
+    .battle-round {
+        background: #495057;
+        color: #f8f9fa;
+    }
+    
+    .stat-badge {
+        background: linear-gradient(135deg, #495057, #343a40);
+        color: #f8f9fa;
+    }
+}
+
+/* Mobile-specific enhancements - dodać do battle template w sekcji <style> */
+
+@media (max-width: 768px) {
+    .battle-arena {
+        background-attachment: scroll; /* Lepsze performance na mobile */
+    }
+    
+    .fighter-card {
+        margin-bottom: 20px;
+        padding: 15px;
+    }
+    
+    .fighter-avatar {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 10px;
+    }
+    
+    .fighter-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .stat-badge {
+        padding: 6px 8px;
+        font-size: 0.8em;
+    }
+    
+    .vs-indicator {
+        width: 60px;
+        height: 60px;
+        font-size: 1.2em;
+        position: relative;
+        margin: 15px auto;
+        transform: none;
+    }
+    
+    .battle-round {
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .round-number {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7em;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+    
+    .damage-indicator {
+        padding: 2px 6px;
+        font-size: 0.7em;
+        margin-left: 5px;
+    }
+    
+    .trait-activation {
+        padding: 3px 6px;
+        font-size: 0.7em;
+        margin: 2px 1px;
+    }
+    
+    .battle-log-container {
+        max-height: 400px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .result-banner {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .result-banner h3 {
+        font-size: 1.3em;
+        animation: none; /* Wyłącz animacje na mobile dla lepszej wydajności */
+        border: none;
+        white-space: normal;
+    }
+    
+    .rewards-section {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .action-buttons {
+        padding: 10px;
+        position: relative; /* Zmień z sticky na relative na mobile */
+        bottom: auto;
+    }
+    
+    .action-buttons .btn {
+        font-size: 0.9em;
+        padding: 8px 16px;
+    }
+    
+    /* Uproszczone animacje dla mobile */
+    .fighter-card.winner::after,
+    .vs-indicator,
+    .exp-gain {
+        animation: none;
+    }
+    
+    /* Touch-friendly buttons */
+    .battle-round {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .battle-round:active {
+        background: rgba(0, 123, 255, 0.1);
+        transform: scale(0.98);
+    }
+    
+    /* Swipe indicator */
+    .battle-log-container::before {
+        content: '← Przesuń aby przewinąć →';
+        display: block;
+        text-align: center;
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-bottom: 10px;
+        padding: 5px;
+        background: rgba(108, 117, 125, 0.1);
+        border-radius: 5px;
+    }
+    
+    /* Reduce motion for users who prefer it */
+    @media (prefers-reduced-motion: reduce) {
+        .battle-round,
+        .fighter-card,
+        .vs-indicator,
+        .result-banner h3 {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+}

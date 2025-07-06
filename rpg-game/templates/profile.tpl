@@ -23,6 +23,9 @@
                         <a href="{$site_url}" class="btn btn-outline-light btn-sm">
                             <i class="fas fa-home"></i> Strona główna
                         </a>
+                        <a href="/friends/{$character.hash1}/{$character.hash2}" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-users"></i> Znajomi
+                        </a>
                     </div>
                 </div>
             </div>
@@ -50,27 +53,48 @@
                             <div class="card-body text-center">
                                 <!-- Avatar -->
                                 <div class="mb-4">
-                                    <img src="{$formatted_stats.avatar}" alt="{$character.name}" class="character-avatar">
+                                    <img src="{if $character.avatar_image}{$character.avatar_image}{else}/images/avatars/default.png{/if}" 
+                                         alt="{$character.name}" 
+                                         class="character-avatar"
+                                         onerror="this.src='/images/avatars/default.png'">
                                 </div>
                                 
-                                <!-- Podstawowe info -->
+                                <!-- Podstawowe info + wszystkie statystyki -->
                                 <div class="row text-center mb-4">
-                                    <div class="col-4">
+                                    <div class="col-4 mb-3">
                                         <div class="stat-item">
                                             <div class="stat-value">{$character.level}</div>
                                             <div class="stat-label">Poziom</div>
                                         </div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 mb-3">
                                         <div class="stat-item">
                                             <div class="stat-value">{$character.damage}</div>
                                             <div class="stat-label">Obrażenia</div>
                                         </div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 mb-3">
                                         <div class="stat-item">
                                             <div class="stat-value">{$character.dexterity}</div>
                                             <div class="stat-label">Zręczność</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4 mb-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">{$character.agility}</div>
+                                            <div class="stat-label">Zwinność</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4 mb-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">{$character.armor_penetration}</div>
+                                            <div class="stat-label">Przebicie</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4 mb-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">{$character.experience}</div>
+                                            <div class="stat-label">Doświadczenie</div>
                                         </div>
                                     </div>
                                 </div>
@@ -85,7 +109,7 @@
                             </div>
                         </div>
 
-                        <!-- Paski statusu -->
+                        <!-- Paski statusu z wartościami -->
                         <div class="card mb-4">
                             <div class="card-header">
                                 <h5><i class="fas fa-heart"></i> Status</h5>
@@ -95,11 +119,12 @@
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <small><i class="fas fa-heart text-danger"></i> Zdrowie</small>
-                                        <small class="text-muted">{$formatted_stats.formatted_stats.health}</small>
+                                        <small class="text-muted">{$character.health} / {$character.max_health}</small>
                                     </div>
                                     <div class="status-bar">
-                                        <div class="status-bar-fill health-bar" style="width: {$formatted_stats.status_bars.health_percent}%">
-                                            <div class="status-text">{$formatted_stats.status_bars.health_percent|string_format:"%.0f"}%</div>
+                                        {assign var="health_percent" value=($character.health / $character.max_health * 100)}
+                                        <div class="status-bar-fill health-bar" style="width: {$health_percent}%">
+                                            <div class="status-text">{$health_percent|string_format:"%.0f"}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -108,11 +133,12 @@
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <small><i class="fas fa-running text-success"></i> Wytrzymałość</small>
-                                        <small class="text-muted">{$formatted_stats.formatted_stats.stamina}</small>
+                                        <small class="text-muted">{$character.stamina} / {$character.max_stamina}</small>
                                     </div>
                                     <div class="status-bar">
-                                        <div class="status-bar-fill stamina-bar" style="width: {$formatted_stats.status_bars.stamina_percent}%">
-                                            <div class="status-text">{$formatted_stats.status_bars.stamina_percent|string_format:"%.0f"}%</div>
+                                        {assign var="stamina_percent" value=($character.stamina / $character.max_stamina * 100)}
+                                        <div class="status-bar-fill stamina-bar" style="width: {$stamina_percent}%">
+                                            <div class="status-text">{$stamina_percent|string_format:"%.0f"}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -121,11 +147,12 @@
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <small><i class="fas fa-shield-alt text-info"></i> Pancerz</small>
-                                        <small class="text-muted">{$formatted_stats.formatted_stats.armor}</small>
+                                        <small class="text-muted">{$character.armor} / {$character.max_armor}</small>
                                     </div>
                                     <div class="status-bar">
-                                        <div class="status-bar-fill armor-bar" style="width: {$formatted_stats.status_bars.armor_percent}%">
-                                            <div class="status-text">{$formatted_stats.status_bars.armor_percent|string_format:"%.0f"}%</div>
+                                        {assign var="armor_percent" value=($character.armor / $character.max_armor * 100)}
+                                        <div class="status-bar-fill armor-bar" style="width: {$armor_percent}%">
+                                            <div class="status-text">{$armor_percent|string_format:"%.0f"}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -134,11 +161,14 @@
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <small><i class="fas fa-star text-warning"></i> Doświadczenie</small>
-                                        <small class="text-muted">{$formatted_stats.formatted_stats.exp_to_next}</small>
+                                        {assign var="exp_per_level" value=100}
+                                        {assign var="exp_needed" value=($character.level * $exp_per_level)}
+                                        <small class="text-muted">{$character.experience} / {$exp_needed}</small>
                                     </div>
                                     <div class="status-bar">
-                                        <div class="status-bar-fill experience-bar" style="width: {$formatted_stats.experience_info.progress_percent}%">
-                                            <div class="status-text">{$formatted_stats.experience_info.progress_percent|string_format:"%.0f"}%</div>
+                                        {assign var="exp_percent" value=($character.experience / $exp_needed * 100)}
+                                        <div class="status-bar-fill experience-bar" style="width: {$exp_percent}%">
+                                            <div class="status-text">{$exp_percent|string_format:"%.0f"}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -196,7 +226,10 @@
                                         <div class="opponent-card">
                                             <div class="row align-items-center">
                                                 <div class="col-3">
-                                                    <img src="{$opponent.avatar}" alt="{$opponent.name}" class="character-mini-avatar">
+                                                    <img src="{if $opponent.avatar_image}{$opponent.avatar_image}{else}/images/avatars/default.png{/if}" 
+                                                         alt="{$opponent.name}" 
+                                                         class="character-mini-avatar"
+                                                         onerror="this.src='/images/avatars/default.png'">
                                                 </div>
                                                 <div class="col-6">
                                                     <strong>{$opponent.name}</strong><br>
@@ -225,62 +258,69 @@
                             </div>
                         </div>
 
-                        <!-- Znajomi -->
+                        <!-- Szybkie znajomi (ostatni znajomi) -->
+                        {if $friends}
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-users"></i> Znajomi</h5>
+                                <a href="/friends/{$character.hash1}/{$character.hash2}" class="btn btn-outline-light btn-sm">
+                                    <i class="fas fa-search"></i> Wszyscy
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                {foreach $friends|array_slice:0:5 as $friend}
+                                    <div class="friend-card">
+                                        <div class="row align-items-center">
+                                            <div class="col-3">
+                                                <img src="{if $friend.avatar_image}{$friend.avatar_image}{else}/images/avatars/default.png{/if}" 
+                                                     alt="{$friend.name}" 
+                                                     class="character-mini-avatar"
+                                                     onerror="this.src='/images/avatars/default.png'">
+                                            </div>
+                                            <div class="col-5">
+                                                <strong>{$friend.name}</strong><br>
+                                                <small class="text-muted">Lvl {$friend.level}</small>
+                                            </div>
+                                            <div class="col-4">
+                                                {if $character.challenge_points > 0}
+                                                    <form method="POST" class="d-inline">
+                                                        <input type="hidden" name="action" value="battle_friend">
+                                                        <input type="hidden" name="friend_id" value="{$friend.id}">
+                                                        <button type="submit" class="btn btn-sm battle-btn me-1" title="Wyzwij">
+                                                            <i class="fas fa-fist-raised"></i>
+                                                        </button>
+                                                    </form>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/foreach}
+                                
+                                {if count($friends) > 5}
+                                    <div class="text-center mt-2">
+                                        <a href="/friends/{$character.hash1}/{$character.hash2}" class="btn btn-sm btn-outline-primary">
+                                            Zobacz wszystkich ({count($friends)})
+                                        </a>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                        {else}
+                        <!-- Brak znajomych - pokaż wyszukiwarkę -->
                         <div class="card mb-4">
                             <div class="card-header">
                                 <h5><i class="fas fa-users"></i> Znajomi</h5>
                             </div>
-                            <div class="card-body">
-                                <!-- Dodawanie znajomego -->
-                                <form method="POST" class="mb-3">
-                                    <input type="hidden" name="action" value="add_friend">
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" name="friend_pin" placeholder="PIN znajomego" maxlength="6" required>
-                                        <button type="submit" class="btn btn-outline-primary">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </form>
-
-                                <!-- Lista znajomych -->
-                                {if $friends}
-                                    {foreach $friends as $friend}
-                                        <div class="friend-card">
-                                            <div class="row align-items-center">
-                                                <div class="col-3">
-                                                    <img src="{$friend.avatar}" alt="{$friend.name}" class="character-mini-avatar">
-                                                </div>
-                                                <div class="col-5">
-                                                    <strong>{$friend.name}</strong><br>
-                                                    <small class="text-muted">Poziom {$friend.level}</small>
-                                                </div>
-                                                <div class="col-4">
-                                                    {if $character.challenge_points > 0}
-                                                        <form method="POST" class="d-inline">
-                                                            <input type="hidden" name="action" value="battle_friend">
-                                                            <input type="hidden" name="friend_id" value="{$friend.id}">
-                                                            <button type="submit" class="btn btn-sm battle-btn me-1" title="Wyzwij">
-                                                                <i class="fas fa-fist-raised"></i>
-                                                            </button>
-                                                        </form>
-                                                    {/if}
-                                                    
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="action" value="remove_friend">
-                                                        <input type="hidden" name="friend_id" value="{$friend.id}">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Usuń" onclick="return confirm('Usunąć znajomego?')">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {/foreach}
-                                {else}
-                                    <p class="text-muted text-center">Brak znajomych</p>
-                                {/if}
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">Nie masz jeszcze znajomych</h6>
+                                <p class="text-muted">Wyszukaj innych graczy po imieniu</p>
+                                <a href="/friends/{$character.hash1}/{$character.hash2}" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Znajdź znajomych
+                                </a>
                             </div>
                         </div>
+                        {/if}
                     </div>
 
                     <!-- Prawa kolumna - Historia i ekwipunek -->
@@ -331,47 +371,37 @@
                                     <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                         <div>
                                             <strong>{$weapon.name}</strong>
-                                            {if $weapon.is_equipped}
+                                            {if $weapon.is_equipped || $character.equipped_weapon_id == $weapon.id}
                                                 <span class="badge bg-primary ms-1">Założona</span>
                                             {/if}
                                             <br>
                                             <small class="text-muted">
-                                                Obrażenia: +{$weapon.damage_bonus}
+                                                Obrażenia: +{$weapon.damage}
                                                 {if $weapon.armor_penetration > 0}, Przebicie: {$weapon.armor_penetration}{/if}
                                             </small>
                                         </div>
+                                        {if !$weapon.is_equipped && $character.equipped_weapon_id != $weapon.id}
+                                            <form method="POST" class="d-inline">
+                                                <input type="hidden" name="action" value="equip_weapon">
+                                                <input type="hidden" name="weapon_id" value="{$weapon.id}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-hand-paper"></i>
+                                                </button>
+                                            </form>
+                                        {/if}
                                     </div>
                                 {/foreach}
                             </div>
                         </div>
                         {/if}
 
-                        <!-- Dodatkowe statystyki -->
+                        <!-- Data utworzenia -->
                         <div class="card">
-                            <div class="card-header">
-                                <h5><i class="fas fa-chart-bar"></i> Statystyki</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row text-center">
-                                    <div class="col-6 mb-3">
-                                        <div class="stat-item">
-                                            <div class="stat-value">{$character.agility}</div>
-                                            <div class="stat-label">Zwinność</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 mb-3">
-                                        <div class="stat-item">
-                                            <div class="stat-value">{$character.armor_penetration}</div>
-                                            <div class="stat-label">Przebicie</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <small class="text-muted">
-                                            <i class="fas fa-calendar"></i> 
-                                            Utworzono: {$character.created_at|date_format:"%d.%m.%Y"}
-                                        </small>
-                                    </div>
-                                </div>
+                            <div class="card-body text-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i> 
+                                    Utworzono: {$character.created_at|date_format:"%d.%m.%Y"}
+                                </small>
                             </div>
                         </div>
                     </div>

@@ -297,6 +297,31 @@ class Character {
     public function getSocial() {
         return $this->social;
     }
+    
+    /**
+     * Wyszukuje postacie po nazwie
+     */
+    public function searchByName($searchQuery, $excludeCharacterId = null, $limit = 20) {
+        return $this->social->searchCharactersByName($searchQuery, $excludeCharacterId, $limit);
+    }
+    
+    /**
+     * Sprawdza czy postać jest online
+     */
+    public function isOnline($characterId) {
+        return $this->social->isOnline($characterId);
+    }
+    
+    /**
+     * Pobiera postać po ID z avatarem
+     */
+    public function getByIdWithAvatar($id) {
+        $sql = "SELECT c.*, w.name as weapon_name, w.damage as weapon_damage, w.armor_penetration as weapon_penetration
+                FROM characters c 
+                LEFT JOIN weapons w ON c.equipped_weapon_id = w.id
+                WHERE c.id = ?";
+        return $this->db->fetchOne($sql, [$id]);
+    }
 }
 
 ?>
