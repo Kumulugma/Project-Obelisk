@@ -6,26 +6,50 @@ class Character {
         $this->db = Database::getInstance();
     }
     
-    public function create($name, $secretCode = null) {
-        $maxChars = $this->getSystemSetting('max_characters', 1000);
-        $currentCount = $this->db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
+    public function create($name, $gender = 'male', $secretCode = null) {
+        // NOWA LOGIKA - Sprawdzenie trybu rejestracji
+        $registrationMode = $this->getSystemSetting('registration_mode', 'open');
         
-        if ($currentCount >= $maxChars && !$this->validateSecretCode($secretCode)) {
-            throw new Exception("Osiągnięto limit postaci lub nieprawidłowy kod tajny.");
+        switch ($registrationMode) {
+            case 'closed':
+                throw new Exception($this->getSystemSetting('closed_registration_message', 'Rejestracja jest tymczasowo zamknięta.'));
+                break;
+                
+            case 'invite_only':
+                if (!$secretCode || !$this->validateSecretCode($secretCode)) {
+                    throw new Exception($this->getSystemSetting('invite_only_message', 'Rejestracja wymaga kodu zaproszenia.'));
+                }
+                break;
+                
+            case 'open':
+            default:
+                // Sprawdź limit postaci tylko jeśli nie ma kodu
+                $maxChars = $this->getSystemSetting('max_characters', 1000);
+                $currentCount = $this->db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
+                
+                if ($currentCount >= $maxChars && !$this->validateSecretCode($secretCode)) {
+                    throw new Exception("Osiągnięto limit postaci. Użyj kodu tajnego lub spróbuj później.");
+                }
+                break;
+        }
+        
+        // Walidacja płci
+        if (!in_array($gender, ['male', 'female'])) {
+            $gender = 'male';
         }
         
         $pin = $this->generatePin();
         $hash1 = $this->generateHash();
         $hash2 = $this->generateHash();
-        $avatar = $this->getRandomAvatar();
+        $avatar = $this->getRandomAvatarByGender($gender);
         
-        $sql = "INSERT INTO characters (name, pin, hash1, hash2, avatar_image) VALUES (?, ?, ?, ?, ?)";
-        $this->db->query($sql, [$name, $pin, $hash1, $hash2, $avatar]);
+        $sql = "INSERT INTO characters (name, gender, pin, hash1, hash2, avatar_image) VALUES (?, ?, ?, ?, ?, ?)";
+        $this->db->query($sql, [$name, $gender, $pin, $hash1, $hash2, $avatar]);
         
         $characterId = $this->db->lastInsertId();
         $this->equipWeapon($characterId, 1);
         
-        if ($secretCode) {
+        if ($secretCode && $this->validateSecretCode($secretCode)) {
             $this->useSecretCode($secretCode);
         }
         
@@ -33,8 +57,67 @@ class Character {
             'id' => $characterId,
             'pin' => $pin,
             'hash1' => $hash1,
-            'hash2' => $hash2
+            'hash2' => $hash2,
+            'gender' => $gender,
+            'avatar' => $avatar
         ];
+    }
+    
+    // NOWA METODA - Sprawdzenie czy rejestracja jest dostępna
+    public function isRegistrationAvailable($hasSecretCode = false) {
+        $registrationMode = $this->getSystemSetting('registration_mode', 'open');
+        
+        switch ($registrationMode) {
+            case 'closed':
+                return false;
+                
+            case 'invite_only':
+                return $hasSecretCode;
+                
+            case 'open':
+            default:
+                // Sprawdź limit postaci
+                $maxChars = $this->getSystemSetting('max_characters', 1000);
+                $currentCount = $this->db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
+                return $currentCount < $maxChars || $hasSecretCode;
+        }
+    }
+    
+    // NOWA METODA - Pobierz komunikat o stanie rejestracji
+    public function getRegistrationMessage() {
+        $registrationMode = $this->getSystemSetting('registration_mode', 'open');
+        
+        switch ($registrationMode) {
+            case 'closed':
+                return [
+                    'type' => 'danger',
+                    'message' => $this->getSystemSetting('closed_registration_message', 'Rejestracja jest tymczasowo zamknięta.')
+                ];
+                
+            case 'invite_only':
+                return [
+                    'type' => 'warning', 
+                    'message' => $this->getSystemSetting('invite_only_message', 'Rejestracja jest możliwa tylko za pomocą kodu zaproszenia.')
+                ];
+                
+            case 'open':
+            default:
+                $maxChars = $this->getSystemSetting('max_characters', 1000);
+                $currentCount = $this->db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'];
+                
+                if ($currentCount >= $maxChars) {
+                    return [
+                        'type' => 'warning',
+                        'message' => "Osiągnięto limit {$maxChars} postaci. Rejestracja możliwa tylko z kodem tajnym."
+                    ];
+                } else {
+                    $remaining = $maxChars - $currentCount;
+                    return [
+                        'type' => 'success',
+                        'message' => $this->getSystemSetting('registration_message', "Rejestracja otwarta! Pozostało {$remaining} miejsc.")
+                    ];
+                }
+        }
     }
     
     public function getByHashes($hash1, $hash2) {
@@ -110,6 +193,22 @@ class Character {
     }
     
     public function addFriend($characterId, $friendId) {
+        // Sprawdź czy nie próbuje dodać siebie
+        if ($characterId == $friendId) {
+            throw new Exception("Nie możesz dodać siebie do znajomych.");
+        }
+        
+        // Sprawdź czy już nie są znajomymi
+        $existing = $this->db->fetchOne(
+            "SELECT id FROM character_friends WHERE character_id = ? AND friend_id = ?",
+            [$characterId, $friendId]
+        );
+        
+        if ($existing) {
+            throw new Exception("Ta postać jest już w Twoich znajomych.");
+        }
+        
+        // Sprawdź limit znajomych
         $friendsCount = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM character_friends WHERE character_id = ?",
             [$characterId]
@@ -119,8 +218,23 @@ class Character {
             throw new Exception("Osiągnięto maksymalną liczbę znajomych.");
         }
         
-        $sql = "INSERT IGNORE INTO character_friends (character_id, friend_id) VALUES (?, ?)";
+        // Sprawdź czy postać istnieje
+        $friendExists = $this->db->fetchOne("SELECT id FROM characters WHERE id = ?", [$friendId]);
+        if (!$friendExists) {
+            throw new Exception("Postać nie istnieje.");
+        }
+        
+        $sql = "INSERT INTO character_friends (character_id, friend_id) VALUES (?, ?)";
         $this->db->query($sql, [$characterId, $friendId]);
+    }
+    
+    public function removeFriend($characterId, $friendId) {
+        $sql = "DELETE FROM character_friends WHERE character_id = ? AND friend_id = ?";
+        $result = $this->db->query($sql, [$characterId, $friendId]);
+        
+        if ($result->rowCount() == 0) {
+            throw new Exception("Ta postać nie jest w Twoich znajomych.");
+        }
     }
     
     public function getFriends($characterId) {
@@ -142,6 +256,16 @@ class Character {
     }
     
     public function addTrait($characterId, $traitId) {
+        // Sprawdź czy już ma ten trait
+        $existing = $this->db->fetchOne(
+            "SELECT id FROM character_traits WHERE character_id = ? AND trait_id = ?",
+            [$characterId, $traitId]
+        );
+        
+        if ($existing) {
+            return; // Już ma ten trait
+        }
+        
         $sql = "INSERT INTO character_traits (character_id, trait_id) VALUES (?, ?)";
         $this->db->query($sql, [$characterId, $traitId]);
     }
@@ -208,6 +332,8 @@ class Character {
             $totalChance += $trait['drop_chance'];
         }
         
+        if ($totalChance <= 0) return;
+        
         $rand = mt_rand() / mt_getrandmax() * $totalChance;
         $currentChance = 0;
         
@@ -235,11 +361,13 @@ class Character {
             throw new Exception("Możesz zmienić broń tylko raz dziennie.");
         }
         
+        // Usuń wyposażenie ze wszystkich broni
         $this->db->query(
             "UPDATE character_weapons SET is_equipped = FALSE WHERE character_id = ?",
             [$characterId]
         );
         
+        // Wyposaż nową broń (jeśli nie jest pięścią)
         if ($weaponId != 1) {
             $this->db->query(
                 "UPDATE character_weapons SET is_equipped = TRUE WHERE character_id = ? AND weapon_id = ?",
@@ -247,6 +375,7 @@ class Character {
             );
         }
         
+        // Zaktualizuj postać
         $updateSql = "UPDATE characters SET equipped_weapon_id = ?";
         $updateParams = [$weaponId];
         
@@ -271,40 +400,105 @@ class Character {
     }
     
     public function getRandomOpponents($characterId, $count = 10) {
+        // Walidacja parametru count jako liczba całkowita
+        $count = intval($count);
+        if ($count <= 0) {
+            $count = 10;
+        }
+        if ($count > 50) {
+            $count = 50; // Maksymalny limit dla bezpieczeństwa
+        }
+        
+        // Budowanie zapytania z bezpiecznym LIMIT
         $sql = "SELECT c.*, w.name as weapon_name 
                 FROM characters c 
                 LEFT JOIN weapons w ON c.equipped_weapon_id = w.id
                 WHERE c.id != ? 
                 ORDER BY RAND() 
-                LIMIT ?";
-        return $this->db->fetchAll($sql, [$characterId, $count]);
+                LIMIT " . $count;
+        
+        return $this->db->fetchAll($sql, [$characterId]);
     }
     
     public function getRecentBattles($characterId, $limit = 20) {
-    // Walidacja limitu jako liczba całkowita
-    $limit = intval($limit);
-    if ($limit <= 0) {
-        $limit = 20;
+        // Walidacja limitu jako liczba całkowita
+        $limit = intval($limit);
+        if ($limit <= 0) {
+            $limit = 20;
+        }
+        if ($limit > 100) {
+            $limit = 100; // Maksymalny limit dla bezpieczeństwa
+        }
+        
+        $sql = "SELECT b.*, 
+                       a.name as attacker_name, 
+                       d.name as defender_name,
+                       w.name as winner_name,
+                       CASE 
+                           WHEN b.attacker_id = ? THEN 'attack'
+                           ELSE 'defend'
+                       END as battle_role
+                FROM battles b
+                JOIN characters a ON b.attacker_id = a.id
+                JOIN characters d ON b.defender_id = d.id
+                LEFT JOIN characters w ON b.winner_id = w.id
+                WHERE b.attacker_id = ? OR b.defender_id = ?
+                ORDER BY b.created_at DESC
+                LIMIT " . $limit;
+        
+        return $this->db->fetchAll($sql, [$characterId, $characterId, $characterId]);
     }
     
-    $sql = "SELECT b.*, 
-                   a.name as attacker_name, 
-                   d.name as defender_name,
-                   w.name as winner_name,
-                   CASE 
-                       WHEN b.attacker_id = ? THEN 'attack'
-                       ELSE 'defend'
-                   END as battle_role
-            FROM battles b
-            JOIN characters a ON b.attacker_id = a.id
-            JOIN characters d ON b.defender_id = d.id
-            LEFT JOIN characters w ON b.winner_id = w.id
-            WHERE b.attacker_id = ? OR b.defender_id = ?
-            ORDER BY b.created_at DESC
-            LIMIT " . $limit;
+    // NOWE METODY DLA SYSTEMU AVATARÓW I PŁCI
     
-    return $this->db->fetchAll($sql, [$characterId, $characterId, $characterId]);
-}
+    public function getAvailableAvatars($gender = null) {
+        if ($gender && in_array($gender, ['male', 'female'])) {
+            $sql = "SELECT * FROM avatar_images WHERE (gender = ? OR gender = 'unisex') AND is_active = TRUE";
+            return $this->db->fetchAll($sql, [$gender]);
+        } else {
+            $sql = "SELECT * FROM avatar_images WHERE is_active = TRUE";
+            return $this->db->fetchAll($sql);
+        }
+    }
+    
+    public function changeAvatar($characterId, $avatarPath) {
+        // Sprawdź czy avatar istnieje i jest aktywny
+        $avatar = $this->db->fetchOne(
+            "SELECT id FROM avatar_images WHERE image_path = ? AND is_active = TRUE",
+            [$avatarPath]
+        );
+        
+        if (!$avatar) {
+            throw new Exception("Wybrany avatar nie istnieje lub jest nieaktywny.");
+        }
+        
+        // Sprawdź czy postać może zmienić avatar (np. raz dziennie)
+        $character = $this->getById($characterId);
+        $today = date('Y-m-d');
+        
+        // Dodaj sprawdzenie ostatniej zmiany avatara (opcjonalnie)
+        // if ($character['last_avatar_change'] == $today) {
+        //     throw new Exception("Możesz zmienić avatar tylko raz dziennie.");
+        // }
+        
+        $sql = "UPDATE characters SET avatar_image = ? WHERE id = ?";
+        $this->db->query($sql, [$avatarPath, $characterId]);
+    }
+    
+    private function getRandomAvatarByGender($gender) {
+        $sql = "SELECT image_path FROM avatar_images WHERE (gender = ? OR gender = 'unisex') AND is_active = TRUE";
+        $avatars = $this->db->fetchAll($sql, [$gender]);
+        
+        if (empty($avatars)) {
+            // Fallback do uniwersalnych avatarów
+            $avatars = $this->db->fetchAll("SELECT image_path FROM avatar_images WHERE is_active = TRUE");
+            if (empty($avatars)) {
+                return '/images/avatars/default.png';
+            }
+        }
+        
+        return $avatars[array_rand($avatars)]['image_path'];
+    }
     
     private function generatePin() {
         do {
@@ -320,6 +514,7 @@ class Character {
     }
     
     private function getRandomAvatar() {
+        // Stara metoda - używana jako fallback
         $avatars = $this->db->fetchAll("SELECT image_path FROM avatar_images WHERE is_active = TRUE");
         if (empty($avatars)) {
             return '/images/avatars/default.png';
