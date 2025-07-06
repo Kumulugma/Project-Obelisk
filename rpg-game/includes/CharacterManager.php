@@ -104,14 +104,14 @@ class CharacterManager {
             
             if ($resetEnergy) {
                 $sql .= "energy_points = ?, last_energy_reset = ?";
-                $params[] = DAILY_ENERGY;
+                $params[] = $this->getSystemSetting('daily_energy', 10);
                 $params[] = $today;
             }
             
             if ($resetChallenges) {
                 if ($resetEnergy) $sql .= ", ";
                 $sql .= "challenge_points = ?, last_challenge_reset = ?";
-                $params[] = DAILY_CHALLENGES;
+                $params[] = $this->getSystemSetting('daily_challenges', 2);
                 $params[] = $today;
             }
             
@@ -148,7 +148,7 @@ class CharacterManager {
         $newExp = $character['experience'] + $exp;
         $newLevel = $character['level'];
         
-        $expPerLevel = $this->getSystemSetting('experience_per_level', EXP_PER_LEVEL);
+        $expPerLevel = $this->getSystemSetting('exp_per_level', 100);
         while ($newExp >= ($newLevel * $expPerLevel)) {
             $newExp -= ($newLevel * $expPerLevel);
             $newLevel++;
@@ -295,14 +295,10 @@ class CharacterManager {
     }
     
     /**
-     * Pobiera ustawienie systemowe
+     * Pobiera ustawienie systemowe - używa funkcji globalnej
      */
-    private function getSystemSetting($key, $default = null) {
-        $setting = $this->db->fetchOne(
-            "SELECT setting_value FROM system_settings WHERE setting_key = ?",
-            [$key]
-        );
-        return $setting ? $setting['setting_value'] : $default;
+    public function getSystemSetting($key, $default = null) {
+        return getSystemSetting($key, $default);
     }
 }
 

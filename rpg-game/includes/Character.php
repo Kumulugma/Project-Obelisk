@@ -17,6 +17,13 @@ class Character {
         $this->social = new CharacterSocial();
     }
     
+    /**
+     * Sprawdza dostęp do postaci - deleguje do klasy auth
+     */
+    public function checkCharacterAccess($hash1, $hash2) {
+        return $this->auth->checkCharacterAccess($hash1, $hash2);
+    }
+    
     // ==================== METODY AUTORYZACJI ====================
     
     /**

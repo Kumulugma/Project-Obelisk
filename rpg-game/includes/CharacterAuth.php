@@ -34,6 +34,40 @@ class CharacterAuth {
     }
     
     /**
+     * Sprawdza dostęp do postaci - główna metoda autoryzacji
+     */
+    public function checkCharacterAccess($hash1, $hash2) {
+        // Spróbuj znaleźć postać po hashach
+        $character = $this->authenticateByHashes($hash1, $hash2);
+        
+        if ($character) {
+            return $character;
+        }
+        
+        // Jeśli nie znaleziono, spróbuj automatycznego logowania z ciasteczka
+        $cookieData = $this->getCharacterFromCookie();
+        if ($cookieData) {
+            // Spróbuj przez PIN
+            if (!empty($cookieData['pin'])) {
+                $character = $this->authenticateByPin($cookieData['pin']);
+                if ($character) {
+                    return $character;
+                }
+            }
+            
+            // Spróbuj przez hashe z ciasteczka
+            if (!empty($cookieData['hash1']) && !empty($cookieData['hash2'])) {
+                $character = $this->authenticateByHashes($cookieData['hash1'], $cookieData['hash2']);
+                if ($character) {
+                    return $character;
+                }
+            }
+        }
+        
+        return null; // Brak dostępu
+    }
+    
+    /**
      * Zapisuje dane postaci w ciasteczku
      */
     public function setCharacterCookie($characterData) {

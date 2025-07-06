@@ -35,15 +35,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // Walidacja danych
-                if (empty($name)) {
-                    $error = 'Nazwa postaci jest wymagana.';
-                } elseif (strlen($name) > 50) {
-                    $error = 'Nazwa postaci może mieć maksymalnie 50 znaków.';
+                $nameValidation = validateCharacterName($name);
+                if ($nameValidation !== true) {
+                    $error = $nameValidation;
                 } elseif (!in_array($gender, ['male', 'female'])) {
                     $error = 'Nieprawidłowa płeć.';
                 } elseif (!verifyRecaptcha($recaptchaResponse)) {
                     $error = 'Weryfikacja reCAPTCHA nie powiodła się.';
                 } else {
+                    // Sprawdź wymagania kodu tajnego
+                    $registrationMode = getSystemSetting('registration_mode', 'open');
+                    if ($registrationMode === 'invite_only' && empty($secretCode)) {
+                        $error = 'Kod zaproszenia jest wymagany.';
+                        break;
+                    }
+                    
                     try {
                         $result = $character->create($name, $gender, $secretCode);
                         
@@ -51,9 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $genderText = ($gender === 'male') ? 'Mężczyzna' : 'Kobieta';
                         $success = "Postać '{$name}' ({$genderText}) została utworzona!<br>";
                         $success .= "PIN: <strong>{$result['pin']}</strong><br>";
-                        $success .= "Avatar: {$result['avatar_image']}<br>";
-                        $success .= "<a href='/{$result['hash1']}/{$result['hash2']}' class='btn btn-success mt-2'>";
+                        $success .= "<div class='mt-3'>";
+                        $success .= "<a href='/{$result['hash1']}/{$result['hash2']}' class='btn btn-success'>";
                         $success .= "<i class='fas fa-play'></i> Rozpocznij grę</a>";
+                        $success .= "</div>";
+                        
+                        // Zapisz postać w ciasteczku dla wygody
+                        setCharacterCookie($result);
                         
                         // Po udanym utworzeniu - odśwież status rejestracji
                         $registrationInfo = $character->getRegistrationStatus();
@@ -68,8 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pin = sanitizeInput($_POST['pin'] ?? '');
                 $recaptchaResponse = $_POST['g-recaptcha-response'] ?? '';
                 
-                if (empty($pin)) {
-                    $error = 'Podaj PIN postaci.';
+                $pinValidation = validatePIN($pin);
+                if ($pinValidation !== true) {
+                    $error = $pinValidation;
                 } elseif (!verifyRecaptcha($recaptchaResponse)) {
                     $error = 'Weryfikacja reCAPTCHA nie powiodła się.';
                 } else {
@@ -95,11 +106,17 @@ $stats = [
     'active_today' => $db->fetchOne("SELECT COUNT(*) as count FROM characters WHERE DATE(last_login) = CURDATE()")['count'] ?? 0
 ];
 
+// Sprawdź czy pokazać formularz rejestracji
+$registrationMode = getSystemSetting('registration_mode', 'open');
+$showRegistrationForm = in_array($registrationMode, ['open', 'invite_only']);
+
 // Pobierz klucz reCAPTCHA
 $recaptchaSiteKey = getRecaptchaSiteKey();
 
 // Przypisz zmienne do Smarty
 $smarty->assign('registration_info', $registrationInfo);
+$smarty->assign('registration_mode', $registrationMode);
+$smarty->assign('show_registration_form', $showRegistrationForm);
 $smarty->assign('stats', $stats);
 $smarty->assign('error', $error);
 $smarty->assign('success', $success);
