@@ -75,22 +75,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'login_character':
-                $pin = sanitizeInput($_POST['pin'] ?? '');
+                $pin = $_POST['pin'] ?? '';
                 $recaptchaResponse = $_POST['g-recaptcha-response'] ?? '';
                 
-                $pinValidation = validatePIN($pin);
-                if ($pinValidation !== true) {
-                    $error = $pinValidation;
+                // Oczyszczanie PIN - usuń wszystko co nie jest cyfrą
+                $pin = preg_replace('/[^0-9]/', '', $pin);
+                
+                // Podstawowa walidacja PIN
+                if (empty($pin)) {
+                    $error = 'Proszę podać PIN.';
+                } elseif (strlen($pin) !== 6) {
+                    $error = 'PIN musi składać się z dokładnie 6 cyfr.';
                 } elseif (!verifyRecaptcha($recaptchaResponse)) {
                     $error = 'Weryfikacja reCAPTCHA nie powiodła się.';
                 } else {
-                    $charData = $character->getByPin($pin);
-                    if ($charData) {
-                        setCharacterCookie($charData);
-                        header("Location: /" . $charData['hash1'] . "/" . $charData['hash2']);
-                        exit;
-                    } else {
-                        $error = 'Nieprawidłowy PIN.';
+                    try {
+                        $charData = $character->getByPin($pin);
+                        if ($charData) {
+                            setCharacterCookie($charData);
+                            header("Location: /" . $charData['hash1'] . "/" . $charData['hash2']);
+                            exit;
+                        } else {
+                            $error = 'Nieprawidłowy PIN. Sprawdź czy wprowadzono wszystkie 6 cyfr.';
+                        }
+                    } catch (Exception $e) {
+                        $error = 'Błąd podczas logowania: ' . $e->getMessage();
                     }
                 }
                 break;

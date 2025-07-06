@@ -17,11 +17,6 @@
             <a class="navbar-brand" href="/">
                 <i class="fas fa-dragon"></i> RPG Game
             </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin" target="_blank">
-                    <i class="fas fa-cog"></i> Panel Admin
-                </a>
-            </div>
         </div>
     </nav>
 
@@ -169,8 +164,8 @@
                                        class="form-control" 
                                        id="pin" 
                                        name="pin" 
-                                       placeholder="Wpisz 6-cyfrowy PIN"
-                                       pattern="[0-9]{6}"
+                                       placeholder="123456"
+                                       inputmode="numeric"
                                        maxlength="6"
                                        required>
                                 <div class="form-text">PIN składa się z 6 cyfr</div>
@@ -218,6 +213,19 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Informacja o grze -->
+                <div class="card shadow">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> O Grze</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><i class="fas fa-gamepad text-primary"></i> Prosta gra RPG w przeglądarce</p>
+                        <p class="mb-2"><i class="fas fa-users text-success"></i> Walcz z innymi graczami</p>
+                        <p class="mb-2"><i class="fas fa-sword text-danger"></i> Zdobywaj bronie i umiejętności</p>
+                        <p class="mb-0"><i class="fas fa-level-up-alt text-warning"></i> Rozwijaj swoją postać</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -226,15 +234,13 @@
     <footer class="bg-dark text-white mt-5 py-4">
         <div class="container">
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     <h5><i class="fas fa-dragon"></i> RPG Game</h5>
-                    <p class="mb-0">Prosta gra RPG w przeglądarce.</p>
+                    <p class="mb-0">Prosta gra RPG w przeglądarce. Stwórz postać i rozpocznij przygodę!</p>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p class="mb-0">
-                        <a href="/admin" class="text-white-50">
-                            <i class="fas fa-cog"></i> Panel Administratora
-                        </a>
+                <div class="col-md-4 text-md-end">
+                    <p class="mb-0 text-muted">
+                        <small>Wersja 1.0</small>
                     </p>
                 </div>
             </div>
@@ -242,5 +248,30 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Walidacja PIN-u po stronie klienta
+        document.getElementById('pin').addEventListener('input', function(e) {
+            // Usuń wszystko co nie jest cyfrą
+            this.value = this.value.replace(/[^0-9]/g, '');
+            
+            // Ogranicz do 6 cyfr
+            if (this.value.length > 6) {
+                this.value = this.value.slice(0, 6);
+            }
+        });
+        
+        // Automatyczne przesyłanie formularza po wpisaniu 6 cyfr
+        document.getElementById('pin').addEventListener('keyup', function(e) {
+            if (this.value.length === 6 && e.key !== 'Backspace') {
+                // Sprawdź czy reCAPTCHA jest wymagana
+                const recaptcha = document.querySelector('.g-recaptcha');
+                if (!recaptcha) {
+                    // Jeśli nie ma reCAPTCHA, automatycznie wyślij formularz
+                    this.form.submit();
+                }
+            }
+        });
+    </script>
 </body>
 </html>

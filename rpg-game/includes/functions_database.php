@@ -93,6 +93,7 @@ if (!function_exists('systemSettingExists')) {
 
 /**
  * Aktualizuje lub tworzy wielokrotne ustawienia systemowe
+ * NAPRAWIONA WERSJA - używa metod Database bezpośrednio
  */
 if (!function_exists('setMultipleSystemSettings')) {
     function setMultipleSystemSettings($settings) {
@@ -102,22 +103,57 @@ if (!function_exists('setMultipleSystemSettings')) {
         
         try {
             $db = Database::getInstance();
-            $db->beginTransaction();
             
-            foreach ($settings as $key => $value) {
-                $sql = "INSERT INTO system_settings (setting_key, setting_value) 
-                        VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = CURRENT_TIMESTAMP";
-                $db->query($sql, [$key, $value, $value]);
+            // Sprawdź czy Database ma metody transakcji
+            if (method_exists($db, 'beginTransaction')) {
+                // Użyj transakcji jeśli dostępne
+                $db->beginTransaction();
+                
+                foreach ($settings as $key => $value) {
+                    $sql = "INSERT INTO system_settings (setting_key, setting_value) 
+                            VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = CURRENT_TIMESTAMP";
+                    $db->query($sql, [$key, $value, $value]);
+                }
+                
+                $db->commit();
+            } else {
+                // Fallback bez transakcji
+                foreach ($settings as $key => $value) {
+                    $sql = "INSERT INTO system_settings (setting_key, setting_value) 
+                            VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = CURRENT_TIMESTAMP";
+                    $db->query($sql, [$key, $value, $value]);
+                }
             }
             
-            $db->commit();
             return true;
         } catch (Exception $e) {
-            $db->rollback();
+            // Wycofaj transakcję w przypadku błędu jeśli dostępna
+            if (isset($db) && method_exists($db, 'inTransaction') && $db->inTransaction()) {
+                $db->rollback();
+            }
             error_log("Error setting multiple system settings: " . $e->getMessage());
             return false;
         }
     }
 }
 
-?>
+/**
+ * Alternatywna wersja bez transakcji (jako backup)
+ */
+if (!function_exists('setMultipleSystemSettingsSimple')) {
+    function setMultipleSystemSettingsSimple($settings) {
+        if (!is_array($settings) || empty($settings)) {
+            return false;
+        }
+        
+        $success = true;
+        foreach ($settings as $key => $value) {
+            if (!setSystemSetting($key, $value)) {
+                $success = false;
+                error_log("Failed to set system setting: $key = $value");
+            }
+        }
+        
+        return $success;
+    }
+}

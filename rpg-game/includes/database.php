@@ -47,5 +47,52 @@ class Database {
     public function lastInsertId() {
         return $this->pdo->lastInsertId();
     }
+    
+    // DODANE METODY DO OBSŁUGI TRANSAKCJI
+    
+    /**
+     * Rozpoczyna transakcję
+     */
+    public function beginTransaction() {
+        return $this->pdo->beginTransaction();
+    }
+    
+    /**
+     * Zatwierdza transakcję
+     */
+    public function commit() {
+        return $this->pdo->commit();
+    }
+    
+    /**
+     * Wycofuje transakcję
+     */
+    public function rollback() {
+        return $this->pdo->rollback();
+    }
+    
+    /**
+     * Sprawdza czy transakcja jest aktywna
+     */
+    public function inTransaction() {
+        return $this->pdo->inTransaction();
+    }
+    
+    /**
+     * Wykonuje zapytanie w transakcji
+     */
+    public function transaction($callback) {
+        try {
+            $this->beginTransaction();
+            $result = $callback($this);
+            $this->commit();
+            return $result;
+        } catch (Exception $e) {
+            if ($this->inTransaction()) {
+                $this->rollback();
+            }
+            throw $e;
+        }
+    }
 }
 ?>

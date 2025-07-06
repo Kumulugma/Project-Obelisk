@@ -86,16 +86,20 @@ if (!function_exists('validateCharacterName')) {
 }
 
 /**
- * Waliduje PIN
+ * Waliduje PIN - uproszczona wersja
  */
 if (!function_exists('validatePIN')) {
     function validatePIN($pin) {
+        // Usuń wszystkie białe znaki
+        $pin = trim($pin);
+        
         if (empty($pin)) {
             return 'PIN nie może być pusty';
         }
         
-        if (!preg_match('/^[0-9]{6}$/', $pin)) {
-            return 'PIN musi składać się z 6 cyfr';
+        // Sprawdź czy PIN składa się tylko z cyfr i ma dokładnie 6 znaków
+        if (!ctype_digit($pin) || strlen($pin) !== 6) {
+            return 'PIN musi składać się z dokładnie 6 cyfr';
         }
         
         return true;
@@ -126,5 +130,3 @@ if (!function_exists('validateSecretCode')) {
         return true;
     }
 }
-
-?>
