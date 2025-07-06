@@ -17,6 +17,10 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
+// Pobierz ustawienia reCAPTCHA z bazy danych
+$recaptchaSiteKey = getRecaptchaSiteKey();
+$recaptchaSecretKey = getRecaptchaSecretKey();
+
 $smarty = new Smarty();
 $smarty->setTemplateDir(TEMPLATES_DIR . 'admin/');
 $smarty->setCompileDir(TEMPLATES_C_DIR);

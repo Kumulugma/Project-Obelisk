@@ -1,4 +1,8 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 session_start();
 require_once '../rpg-game/includes/config.php';
 require_once '../rpg-game/includes/database.php';
@@ -15,6 +19,7 @@ $smarty->setCacheDir(CACHE_DIR);
 $character = new Character();
 $battle = new Battle();
 
+// Pobierz hashe z URL-a
 $hash1 = $_GET['hash1'] ?? '';
 $hash2 = $_GET['hash2'] ?? '';
 
@@ -23,23 +28,28 @@ if (empty($hash1) || empty($hash2)) {
     exit;
 }
 
+// Sprawdź czy postać istnieje
 $charData = $character->getByHashes($hash1, $hash2);
 if (!$charData) {
     header('Location: /');
     exit;
 }
 
+// Zaktualizuj ostatnie logowanie i resetuj punkty
 $character->updateLastLogin($charData['id']);
 $character->resetDailyPoints($charData['id']);
 
+// Pobierz zaktualizowane dane
 $charData = $character->getByHashes($hash1, $hash2);
 
+// Pobierz dane do wyświetlenia
 $traits = $character->getTraits($charData['id']);
 $friends = $character->getFriends($charData['id']);
 $weapons = $character->getWeapons($charData['id']);
 $recentBattles = $character->getRecentBattles($charData['id'], 10);
 $opponents = $character->getRandomOpponents($charData['id'], 10);
 
+// Obsługa akcji
 $message = '';
 $messageType = '';
 
@@ -52,14 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($charData['energy_points'] > 0) {
                         if ($character->useEnergyPoint($charData['id'])) {
                             $battleResult = $battle->initiate($charData['id'], $opponentId, 'random');
-                            
-                            if (isset($_POST['add_friend']) && $_POST['add_friend'] == '1') {
-                                try {
-                                    $character->addFriend($charData['id'], $opponentId);
-                                } catch (Exception $e) {
-                                }
-                            }
-                            
                             $_SESSION['last_battle'] = $battleResult;
                             header("Location: /battle.php?id=" . $battleResult['battle_id']);
                             exit;
@@ -96,18 +98,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $messageType = 'error';
                     }
                     break;
+                    
+                case 'add_friend':
+                    $friendId = intval($_POST['friend_id'] ?? 0);
+                    try {
+                        $character->addFriend($charData['id'], $friendId);
+                        $message = 'Przeciwnik został dodany do znajomych!';
+                        $messageType = 'success';
+                    } catch (Exception $e) {
+                        $message = $e->getMessage();
+                        $messageType = 'error';
+                    }
+                    break;
+                    
+                case 'remove_friend':
+                    $friendId = intval($_POST['friend_id'] ?? 0);
+                    try {
+                        $character->removeFriend($charData['id'], $friendId);
+                        $message = 'Znajomy został usunięty!';
+                        $messageType = 'success';
+                    } catch (Exception $e) {
+                        $message = $e->getMessage();
+                        $messageType = 'error';
+                    }
+                    break;
             }
         } catch (Exception $e) {
             $message = $e->getMessage();
             $messageType = 'error';
         }
         
+        // Odśwież dane po akcji
         $charData = $character->getByHashes($hash1, $hash2);
+        $traits = $character->getTraits($charData['id']);
+        $friends = $character->getFriends($charData['id']);
         $weapons = $character->getWeapons($charData['id']);
         $recentBattles = $character->getRecentBattles($charData['id'], 10);
+        $opponents = $character->getRandomOpponents($charData['id'], 10);
     }
 }
 
+// Zapisz dane postaci w ciasteczku
+setCharacterCookie($charData);
+
+// Przypisz zmienne do szablonu
 $smarty->assign('character', $charData);
 $smarty->assign('traits', $traits);
 $smarty->assign('friends', $friends);

@@ -44,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = "INSERT INTO traits (name, description, type, effect_type, effect_target, 
                         effect_value, effect_duration, trigger_chance, drop_chance, image_path, 
                         avatar_modifier) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $db->execute($sql, [$name, $description, $type, $effectType, $effectTarget, 
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$name, $description, $type, $effectType, $effectTarget, 
                                   $effectValue, $effectDuration, $triggerChance, $dropChance, 
                                   $imagePath, $avatarModifier]);
                 $message = 'Trait został dodany.';
@@ -73,7 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = "UPDATE traits SET name = ?, description = ?, type = ?, effect_type = ?, 
                         effect_target = ?, effect_value = ?, effect_duration = ?, trigger_chance = ?, 
                         drop_chance = ?, image_path = ?, avatar_modifier = ? WHERE id = ?";
-                $db->execute($sql, [$name, $description, $type, $effectType, $effectTarget, 
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$name, $description, $type, $effectType, $effectTarget, 
                                   $effectValue, $effectDuration, $triggerChance, $dropChance, 
                                   $imagePath, $avatarModifier, $id]);
                 $message = 'Trait został zaktualizowany.';
@@ -90,7 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Nie można usunąć traita używanego przez postacie.';
         } else {
             try {
-                $db->execute("DELETE FROM traits WHERE id = ?", [$id]);
+                // ZMIANA: execute() -> query()
+                $db->query("DELETE FROM traits WHERE id = ?", [$id]);
                 $message = 'Trait został usunięty.';
             } catch (Exception $e) {
                 $error = 'Błąd usuwania traita: ' . $e->getMessage();

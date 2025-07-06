@@ -281,23 +281,30 @@ class Character {
     }
     
     public function getRecentBattles($characterId, $limit = 20) {
-        $sql = "SELECT b.*, 
-                       a.name as attacker_name, 
-                       d.name as defender_name,
-                       w.name as winner_name,
-                       CASE 
-                           WHEN b.attacker_id = ? THEN 'attack'
-                           ELSE 'defend'
-                       END as battle_role
-                FROM battles b
-                JOIN characters a ON b.attacker_id = a.id
-                JOIN characters d ON b.defender_id = d.id
-                LEFT JOIN characters w ON b.winner_id = w.id
-                WHERE b.attacker_id = ? OR b.defender_id = ?
-                ORDER BY b.created_at DESC
-                LIMIT ?";
-        return $this->db->fetchAll($sql, [$characterId, $characterId, $characterId, $limit]);
+    // Walidacja limitu jako liczba całkowita
+    $limit = intval($limit);
+    if ($limit <= 0) {
+        $limit = 20;
     }
+    
+    $sql = "SELECT b.*, 
+                   a.name as attacker_name, 
+                   d.name as defender_name,
+                   w.name as winner_name,
+                   CASE 
+                       WHEN b.attacker_id = ? THEN 'attack'
+                       ELSE 'defend'
+                   END as battle_role
+            FROM battles b
+            JOIN characters a ON b.attacker_id = a.id
+            JOIN characters d ON b.defender_id = d.id
+            LEFT JOIN characters w ON b.winner_id = w.id
+            WHERE b.attacker_id = ? OR b.defender_id = ?
+            ORDER BY b.created_at DESC
+            LIMIT " . $limit;
+    
+    return $this->db->fetchAll($sql, [$characterId, $characterId, $characterId]);
+}
     
     private function generatePin() {
         do {

@@ -1,4 +1,4 @@
-{include file="header.tpl" page_title="RPG Game - Główna" show_recaptcha=true}
+{include file="header.tpl" page_title="RPG Game - Główna"}
 
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -40,9 +40,12 @@
                                         <input type="text" class="form-control" id="secret_code" name="secret_code" placeholder="Jeśli posiadasz kod specjalny">
                                     </div>
                                     
-                                    <div class="mb-3">
-                                        <div class="g-recaptcha" data-sitekey="your_recaptcha_site_key"></div>
-                                    </div>
+                                    {if $recaptcha_site_key}
+                                        <div class="mb-3">
+                                            <div class="g-recaptcha" data-sitekey="{$recaptcha_site_key}"></div>
+                                        </div>
+                                        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+                                    {/if}
                                     
                                     <button type="submit" name="create_character" class="btn btn-primary w-100">
                                         <i class="fas fa-magic"></i> Stwórz Postać
@@ -58,45 +61,29 @@
                                         <input type="text" class="form-control" id="pin" name="pin" required maxlength="6" pattern="[0-9]{6}" placeholder="123456">
                                     </div>
                                     
-                                    <div class="mb-3">
-                                        <div class="g-recaptcha" data-sitekey="your_recaptcha_site_key"></div>
-                                    </div>
-                                    
                                     <button type="submit" name="login_pin" class="btn btn-success w-100">
                                         <i class="fas fa-key"></i> Zaloguj przez PIN
                                     </button>
                                 </form>
+                                
+                                <hr>
+                                
+                                <div class="text-center">
+                                    <a href="/admin" class="btn btn-outline-secondary">
+                                        <i class="fas fa-cog"></i> Panel Administracyjny
+                                    </a>
+                                </div>
                             </div>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <p class="text-muted">
+                                Masz już postać? Znajdź ją po PINie lub sprawdź link w ciasteczkach przeglądarki.
+                            </p>
                         </div>
                     {/if}
                 </div>
             </div>
-            
-            {if !$show_pin_info}
-            <div class="card mt-4">
-                <div class="card-body">
-                    <h5><i class="fas fa-info-circle"></i> Jak grać?</h5>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success"></i> Stwórz postać podając imię</li>
-                                <li><i class="fas fa-check text-success"></i> Otrzymasz jednorazowy PIN</li>
-                                <li><i class="fas fa-check text-success"></i> Codziennie dostajesz 10 punktów energii</li>
-                                <li><i class="fas fa-check text-success"></i> Walcz z losowymi przeciwnikami</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success"></i> Dodawaj przeciwników do znajomych</li>
-                                <li><i class="fas fa-check text-success"></i> Używaj 2 punkty wyzwań na znajomych</li>
-                                <li><i class="fas fa-check text-success"></i> Zdobywaj doświadczenie i awansuj</li>
-                                <li><i class="fas fa-check text-success"></i> Znajdź lepszą broń i traity</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {/if}
         </div>
     </div>
 </div>

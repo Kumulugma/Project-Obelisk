@@ -31,14 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'daily_challenges' => (int)$_POST['daily_challenges'],
             'max_friends' => (int)$_POST['max_friends'],
             'exp_per_level' => (int)$_POST['exp_per_level'],
-            'trait_chance' => (float)$_POST['trait_chance']
+            'trait_chance' => (float)$_POST['trait_chance'],
+            'recaptcha_site_key' => sanitizeInput($_POST['recaptcha_site_key']),
+            'recaptcha_secret_key' => sanitizeInput($_POST['recaptcha_secret_key'])
         ];
         
         try {
             foreach ($settings as $key => $value) {
                 $sql = "INSERT INTO system_settings (setting_key, setting_value) 
                         VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?";
-                $db->execute($sql, [$key, $value, $value]);
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$key, $value, $value]);
             }
             $message = 'Ustawienia zostały zapisane.';
         } catch (Exception $e) {
@@ -54,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $sql = "INSERT INTO secret_codes (code, uses_left, description) VALUES (?, ?, ?)";
-                $db->execute($sql, [$code, $usesLeft, $description]);
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$code, $usesLeft, $description]);
                 $message = 'Kod tajny został dodany.';
             } catch (Exception $e) {
                 $error = 'Błąd dodawania kodu: ' . $e->getMessage();
@@ -65,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $isActive = isset($_POST['is_active']) ? 1 : 0;
         
         try {
-            $db->execute("UPDATE secret_codes SET is_active = ? WHERE id = ?", [$isActive, $id]);
+            // ZMIANA: execute() -> query()
+            $db->query("UPDATE secret_codes SET is_active = ? WHERE id = ?", [$isActive, $id]);
             $message = 'Status kodu został zmieniony.';
         } catch (Exception $e) {
             $error = 'Błąd zmiany statusu kodu: ' . $e->getMessage();
@@ -87,16 +92,18 @@ $defaultSettings = [
     'daily_challenges' => 2,
     'max_friends' => 10,
     'exp_per_level' => 100,
-    'trait_chance' => 0.2
+    'trait_chance' => 0.2,
+    'recaptcha_site_key' => '',
+    'recaptcha_secret_key' => ''
 ];
 
 $settings = array_merge($defaultSettings, $currentSettings);
 
-// Pobierz kody tajne
+// POPRAWKA: Pobierz kody tajne BEZ kolumny secret_code_used
 $secretCodes = $db->fetchAll("
-    SELECT *, 
-           (SELECT COUNT(*) FROM characters WHERE secret_code_used = code) as times_used
-    FROM secret_codes 
+    SELECT sc.*, 
+           0 as times_used
+    FROM secret_codes sc
     ORDER BY created_at DESC
 ");
 

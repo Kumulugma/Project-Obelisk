@@ -67,7 +67,7 @@
                         <i class="fas fa-cog"></i> Ustawienia
                     </a>
                     <hr class="my-3">
-                    <a class="nav-link" href="../public/" target="_blank">
+                    <a class="nav-link" href="../" target="_blank">
                         <i class="fas fa-external-link-alt"></i> Strona główna
                     </a>
                     <a class="nav-link" href="logout.php">

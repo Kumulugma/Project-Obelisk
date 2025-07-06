@@ -1,31 +1,19 @@
 RewriteEngine On
 
-# Przekierowanie do panelu admin - POPRAWIONE
-# Zamiast przekierowywać, pozwól na bezpośredni dostęp
-RewriteCond %{REQUEST_URI} ^/admin
+# Przekierowania dla profili postaci
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^admin/(.*)$ admin/$1 [L]
-
-# Istniejące reguły dla profili (tylko jeśli nie jest to admin)
 RewriteCond %{REQUEST_URI} !^/admin
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^([^/]+)/([^/]+)/?$ profile.php?hash1=$1&hash2=$2 [QSA,L]
+RewriteRule ^([a-f0-9]{64})/([a-f0-9]{64})/?$ profile.php?hash1=$1&hash2=$2 [QSA,L]
 
-# Bezpieczeństwo
-<Files "*.php">
-    Order Deny,Allow
-    Allow from all
-</Files>
-
+# Bezpieczeństwo - blokuj dostęp do szablonów
 <FilesMatch "\.(tpl|conf)$">
     Order Deny,Allow
     Deny from all
 </FilesMatch>
 
-# Blokuj dostęp do katalogu nadrzędnego
-<Files "../*">
-    Order Deny,Allow
-    Deny from all
+# Pozwól na wszystkie pliki PHP
+<Files "*.php">
+    Order Allow,Deny
+    Allow from all
 </Files>

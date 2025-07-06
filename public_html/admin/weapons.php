@@ -37,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $sql = "INSERT INTO weapons (name, damage, armor_penetration, drop_chance, image_path) 
                         VALUES (?, ?, ?, ?, ?)";
-                $db->execute($sql, [$name, $damage, $armorPenetration, $dropChance, $imagePath]);
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$name, $damage, $armorPenetration, $dropChance, $imagePath]);
                 $message = 'Broń została dodana.';
             } catch (Exception $e) {
                 $error = 'Błąd dodawania broni: ' . $e->getMessage();
@@ -57,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $sql = "UPDATE weapons SET name = ?, damage = ?, armor_penetration = ?, 
                         drop_chance = ?, image_path = ? WHERE id = ?";
-                $db->execute($sql, [$name, $damage, $armorPenetration, $dropChance, $imagePath, $id]);
+                // ZMIANA: execute() -> query()
+                $db->query($sql, [$name, $damage, $armorPenetration, $dropChance, $imagePath, $id]);
                 $message = 'Broń została zaktualizowana.';
             } catch (Exception $e) {
                 $error = 'Błąd edycji broni: ' . $e->getMessage();
@@ -72,7 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Nie można usunąć broni używanej przez postacie.';
         } else {
             try {
-                $db->execute("DELETE FROM weapons WHERE id = ?", [$id]);
+                // ZMIANA: execute() -> query()
+                $db->query("DELETE FROM weapons WHERE id = ?", [$id]);
                 $message = 'Broń została usunięta.';
             } catch (Exception $e) {
                 $error = 'Błąd usuwania broni: ' . $e->getMessage();

@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 require_once '../rpg-game/includes/config.php';
 require_once '../rpg-game/includes/database.php';
@@ -15,6 +16,11 @@ $character = new Character();
 $error = '';
 $success = '';
 
+// Pobierz ustawienia reCAPTCHA z bazy danych
+$recaptchaSiteKey = getRecaptchaSiteKey();
+$recaptchaSecretKey = getRecaptchaSecretKey();
+
+// Sprawdź czy użytkownik ma już postać w ciasteczkach
 $existingCharacter = getCharacterFromCookie();
 if ($existingCharacter) {
     $charData = $character->getByPin($existingCharacter['pin']);
@@ -32,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (empty($name)) {
             $error = 'Podaj imię postaci.';
-        } elseif (!verifyRecaptcha($recaptchaResponse)) {
+        } elseif (!empty($recaptchaSiteKey) && !verifyRecaptchaFromDB($recaptchaResponse)) {
             $error = 'Weryfikacja reCAPTCHA nie powiodła się.';
         } else {
             try {
@@ -52,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (empty($pin)) {
             $error = 'Podaj PIN postaci.';
-        } elseif (!verifyRecaptcha($recaptchaResponse)) {
+        } elseif (!empty($recaptchaSiteKey) && !verifyRecaptchaFromDB($recaptchaResponse)) {
             $error = 'Weryfikacja reCAPTCHA nie powiodła się.';
         } else {
             $charData = $character->getByPin($pin);
@@ -67,10 +73,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Pobierz statystyki dla strony głównej
+$stats = [];
+$db = Database::getInstance();
+$stats['total_characters'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters")['count'] ?? 0;
+$stats['total_battles'] = $db->fetchOne("SELECT COUNT(*) as count FROM battles")['count'] ?? 0;
+$stats['active_today'] = $db->fetchOne("SELECT COUNT(*) as count FROM characters WHERE DATE(last_login) = CURDATE()")['count'] ?? 0;
+
+// Przypisz zmienne do szablonu
 $smarty->assign('error', $error);
 $smarty->assign('success', $success);
 $smarty->assign('site_url', SITE_URL);
 $smarty->assign('is_mobile', isMobile());
+$smarty->assign('recaptcha_site_key', $recaptchaSiteKey);
+$smarty->assign('stats', $stats);
 
 $smarty->display('home.tpl');
 ?>

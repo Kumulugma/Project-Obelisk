@@ -1,11 +1,11 @@
 <?php
 session_start();
-require_once '../includes/config.php';
-require_once '../includes/database.php';
-require_once '../includes/functions.php';
-require_once '../vendor/autoload.php';
+// POPRAWNE ŚCIEŻKI - zgodnie z innymi plikami admin
+require_once '../../rpg-game/includes/config.php';
+require_once '../../rpg-game/includes/database.php';
+require_once '../../rpg-game/includes/functions.php';
+require_once '../../rpg-game/vendor/autoload.php';
 
-use Smarty\Smarty;
 
 // Sprawdź autoryzację
 if (!isset($_SESSION['admin_logged_in'])) {
@@ -104,4 +104,3 @@ $smarty->assign('admin_username', $_SESSION['admin_username']);
 
 $smarty->display('battles.tpl');
 ?>
-
