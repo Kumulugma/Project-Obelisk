@@ -2,7 +2,7 @@
 session_start();
 require_once '../../rpg-game/includes/config.php';
 require_once '../../rpg-game/includes/database.php';
-require_once '../../rpg-game/includes/Character.php';
+require_once '../../rpg-game/includes/character_includes.php';
 require_once '../../rpg-game/includes/Battle.php';
 require_once '../../rpg-game/includes/functions.php';
 require_once '../../rpg-game/vendor/autoload.php';

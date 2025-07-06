@@ -68,47 +68,25 @@ class Battle {
             }
         }
         
-        while ($attackerStats['health'] > 0 && $defenderStats['health'] > 0 && $round <= 100) {
-            $activeEffects = $this->applyActiveEffects($activeEffects, $attackerStats, $defenderStats, $battleLog, $round);
-            
-            if ($attackerStats['health'] > 0) {
-                $result = $this->performAttack($attackerStats, $defenderStats, $attackerTraits, $round);
-                $defenderStats = $result['defender'];
-                $battleLog[] = [
-                    'round' => $round,
-                    'type' => 'attack',
-                    'attacker' => $attacker['name'],
-                    'defender' => $defender['name'],
-                    'action' => $result['action'],
-                    'damage' => $result['damage'],
-                    'defender_health' => $defenderStats['health'],
-                    'defender_armor' => $defenderStats['armor'],
-                    'traits_activated' => $result['traits_activated']
-                ];
-                
-                $activeEffects['defender'] = array_merge($activeEffects['defender'], $result['new_effects']);
+        while ($attackerStats['health'] > 0 && $defenderStats['health'] > 0 && $round <= 30) {
+            $attackResult = $this->performAttack($attackerStats, $defenderStats, $attackerTraits, $round);
+            if ($attackResult['damage'] > 0) {
+                $defenderStats['health'] -= $attackResult['damage'];
+                $defenderStats['armor'] = max(0, $defenderStats['armor'] - $attackResult['armor_damage']);
             }
+            $battleLog[] = $attackResult['log'];
             
-            if ($defenderStats['health'] > 0) {
-                $result = $this->performAttack($defenderStats, $attackerStats, $defenderTraits, $round);
-                $attackerStats = $result['defender'];
-                $battleLog[] = [
-                    'round' => $round,
-                    'type' => 'attack',
-                    'attacker' => $defender['name'],
-                    'defender' => $attacker['name'],
-                    'action' => $result['action'],
-                    'damage' => $result['damage'],
-                    'defender_health' => $attackerStats['health'],
-                    'defender_armor' => $attackerStats['armor'],
-                    'traits_activated' => $result['traits_activated']
-                ];
-                
-                $activeEffects['attacker'] = array_merge($activeEffects['attacker'], $result['new_effects']);
+            if ($defenderStats['health'] <= 0) break;
+            
+            $defenseResult = $this->performAttack($defenderStats, $attackerStats, $defenderTraits, $round);
+            if ($defenseResult['damage'] > 0) {
+                $attackerStats['health'] -= $defenseResult['damage'];
+                $attackerStats['armor'] = max(0, $attackerStats['armor'] - $defenseResult['armor_damage']);
             }
+            $battleLog[] = $defenseResult['log'];
             
-            $attackerStats['stamina']--;
-            $defenderStats['stamina']--;
+            $attackerStats['stamina'] = max(0, $attackerStats['stamina'] - 2);
+            $defenderStats['stamina'] = max(0, $defenderStats['stamina'] - 2);
             
             if ($attackerStats['stamina'] <= 0) {
                 $attackerStats['health'] = max(1, floor($attackerStats['health'] / 2));
@@ -180,161 +158,95 @@ class Battle {
                         'defender' => $defender,
                         'action' => 'Atak sparowany!',
                         'damage' => 0,
-                        'new_effects' => [],
-                        'traits_activated' => [['name' => 'Parowanie', 'image' => $trait['image_path']]]
+                        'armor_damage' => 0,
+                        'log' => [
+                            'round' => $round,
+                            'type' => 'parry',
+                            'character' => $defender['name'],
+                            'message' => 'Sparował atak!'
+                        ]
                     ];
                 }
             }
         }
         
         if ($hit) {
-            $damage = $attacker['damage'];
+            $baseDamage = $attacker['damage'] + ($attacker['weapon_damage'] ?? 0);
+            $damage = max(1, $baseDamage - $defender['armor']);
+            
+            $action = "Zadał {$damage} obrażeń";
             
             foreach ($traits as $trait) {
                 if ($trait['type'] === 'active' && (mt_rand() / mt_getrandmax()) < $trait['trigger_chance']) {
-                    $traitsActivated[] = [
-                        'name' => $trait['name'],
-                        'image' => $trait['image_path'],
-                        'description' => $trait['description']
-                    ];
-                    
-                    switch ($trait['effect_type']) {
-                        case 'critical_hit':
-                            $damage *= $trait['effect_value'];
-                            $action .= ' [Krytyczny Cios!]';
+                    switch ($trait['name']) {
+                        case 'Krytyczne Uderzenie':
+                            $damage = floor($damage * 1.5);
+                            $action .= " (krytyk!)";
+                            $traitsActivated[] = $trait['name'];
                             break;
-                            
-                        case 'burn':
-                            $newEffects[] = [
-                                'type' => 'burn',
-                                'damage' => $trait['effect_value'],
-                                'duration' => $trait['effect_duration'] ?: 3,
-                                'name' => $trait['name']
-                            ];
-                            $action .= ' [Podpalenie!]';
-                            break;
-                            
-                        case 'heal':
-                            $attacker['health'] = min($attacker['max_health'], $attacker['health'] + $trait['effect_value']);
-                            $action .= ' [Regeneracja +' . $trait['effect_value'] . ' HP!]';
+                        case 'Przebicie Pancerza':
+                            $damage += floor($defender['armor'] * 0.5);
+                            $action .= " (przebicie!)";
+                            $traitsActivated[] = $trait['name'];
                             break;
                     }
                 }
             }
-            
-            $originalDamage = $damage;
-            $armorPenetration = $attacker['armor_penetration'] ?: 0;
-            $effectiveArmor = max(0, $defender['armor'] - $armorPenetration);
-            
-            if ($effectiveArmor > 0) {
-                $armorDamage = min($damage, $effectiveArmor);
-                $defender['armor'] -= $armorDamage;
-                $damage -= $armorDamage;
-            }
-            
-            if ($damage > 0) {
-                $defender['health'] = max(0, $defender['health'] - $damage);
-            }
-            
-            $action = $action ?: "Trafienie za {$originalDamage} obrażeń";
-            if ($armorPenetration > 0) {
-                $action .= " (przebicie: {$armorPenetration})";
-            }
         } else {
-            $action = 'Chybienie';
+            $action = "Chybił";
         }
         
         return [
-            'defender' => $defender,
-            'action' => $action,
-            'damage' => $originalDamage,
-            'new_effects' => $newEffects,
-            'traits_activated' => $traitsActivated
+            'attacker' => $attacker,
+            'damage' => $damage,
+            'armor_damage' => 0,
+            'log' => [
+                'round' => $round,
+                'type' => $hit ? 'hit' : 'miss',
+                'character' => $attacker['name'],
+                'message' => $action,
+                'traits_activated' => $traitsActivated
+            ]
         ];
-    }
-    
-    private function applyActiveEffects($activeEffects, &$attackerStats, &$defenderStats, &$battleLog, $round) {
-        foreach ($activeEffects['attacker'] as $key => $effect) {
-            if ($effect['type'] === 'burn') {
-                $attackerStats['health'] = max(0, $attackerStats['health'] - $effect['damage']);
-                $battleLog[] = [
-                    'round' => $round,
-                    'type' => 'effect',
-                    'character' => 'Atakujący',
-                    'message' => $effect['name'] . ' zadaje ' . $effect['damage'] . ' obrażeń!'
-                ];
-                
-                $activeEffects['attacker'][$key]['duration']--;
-                if ($activeEffects['attacker'][$key]['duration'] <= 0) {
-                    unset($activeEffects['attacker'][$key]);
-                }
-            }
-        }
-        
-        foreach ($activeEffects['defender'] as $key => $effect) {
-            if ($effect['type'] === 'burn') {
-                $defenderStats['health'] = max(0, $defenderStats['health'] - $effect['damage']);
-                $battleLog[] = [
-                    'round' => $round,
-                    'type' => 'effect',
-                    'character' => 'Obrońca',
-                    'message' => $effect['name'] . ' zadaje ' . $effect['damage'] . ' obrażeń!'
-                ];
-                
-                $activeEffects['defender'][$key]['duration']--;
-                if ($activeEffects['defender'][$key]['duration'] <= 0) {
-                    unset($activeEffects['defender'][$key]);
-                }
-            }
-        }
-        
-        return $activeEffects;
     }
     
     private function prepareCharacterStats($character) {
         return [
-            'id' => $character['id'],
             'health' => $character['health'],
             'max_health' => $character['max_health'],
             'stamina' => $character['stamina'],
             'max_stamina' => $character['max_stamina'],
-            'damage' => $character['damage'] + ($character['weapon_damage'] ?: 0),
+            'damage' => $character['damage'],
+            'armor' => $character['armor'],
             'dexterity' => $character['dexterity'],
             'agility' => $character['agility'],
-            'armor' => $character['armor'],
-            'max_armor' => $character['max_armor'],
-            'armor_penetration' => ($character['weapon_penetration'] ?: 0) + ($character['armor_penetration'] ?: 0)
+            'weapon_damage' => $character['weapon_damage'] ?? 0
         ];
     }
     
     private function applyPassiveTraits($stats, $traits) {
         foreach ($traits as $trait) {
             if ($trait['type'] === 'passive') {
-                switch ($trait['effect_type']) {
-                    case 'damage_boost':
-                        $stats['damage'] += $trait['effect_value'];
+                switch ($trait['name']) {
+                    case 'Wzmocnienie':
+                        $stats['damage'] += 2;
                         break;
-                    case 'agility_boost':
-                        $stats['agility'] += $trait['effect_value'];
+                    case 'Pancerz':
+                        $stats['armor'] += 3;
                         break;
-                    case 'armor_boost':
-                        $stats['armor'] += $trait['effect_value'];
-                        $stats['max_armor'] += $trait['effect_value'];
+                    case 'Szybkość':
+                        $stats['agility'] += 2;
                         break;
-                    case 'dexterity_boost':
-                        $stats['dexterity'] += $trait['effect_value'];
+                    case 'Precyzja':
+                        $stats['dexterity'] += 2;
                         break;
-                    case 'stamina_boost':
-                        $stats['stamina'] += $trait['effect_value'];
-                        $stats['max_stamina'] += $trait['effect_value'];
-                        break;
-                    case 'penetration_boost':
-                        $stats['armor_penetration'] += $trait['effect_value'];
+                    case 'Wytrzymałość':
+                        $stats['max_health'] += 10;
+                        $stats['health'] = min($stats['health'] + 10, $stats['max_health']);
                         break;
                 }
             }
         }
-        
         return $stats;
     }
     
@@ -354,11 +266,13 @@ class Battle {
         return $this->db->fetchOne($sql, [$characterId]);
     }
     
-    private function checkWeaponDrop() {
+    // ZMIENIONE: Dodano modifier dla szans na drop
+    private function checkWeaponDrop($modifier = 1.0) {
         $weapons = $this->db->fetchAll("SELECT id, drop_chance FROM weapons WHERE id > 1");
         
         foreach ($weapons as $weapon) {
-            if ((mt_rand() / mt_getrandmax()) < $weapon['drop_chance']) {
+            $adjustedChance = $weapon['drop_chance'] * $modifier;
+            if ((mt_rand() / mt_getrandmax()) < $adjustedChance) {
                 return $weapon['id'];
             }
         }
@@ -366,11 +280,13 @@ class Battle {
         return null;
     }
     
-    private function checkTraitDrop() {
+    // ZMIENIONE: Dodano modifier dla szans na drop
+    private function checkTraitDrop($modifier = 1.0) {
         $traits = $this->db->fetchAll("SELECT id, drop_chance FROM traits");
         
         foreach ($traits as $trait) {
-            if ((mt_rand() / mt_getrandmax()) < $trait['drop_chance']) {
+            $adjustedChance = $trait['drop_chance'] * $modifier;
+            if ((mt_rand() / mt_getrandmax()) < $adjustedChance) {
                 return $trait['id'];
             }
         }
@@ -396,19 +312,66 @@ class Battle {
         return $this->db->lastInsertId();
     }
     
+    // ZMIENIONE: Sprawiedliwy system nagród
     private function grantRewards($battleResult, $battleId) {
         $character = new Character();
         $winnerId = $battleResult['winner']['id'];
+        $loserId = $battleResult['loser']['id'];
         
+        // Doświadczenie tylko dla zwycięzcy
         $character->addExperience($winnerId, $battleResult['experience_gained']);
         
+        // SYSTEM NAGRÓD DLA OBUDWU GRACZY
+        
+        // 1. Nagrody podstawowe (te które wypadły w walce)
         if ($battleResult['weapon_dropped']) {
+            // Zwycięzca zawsze dostaje broń
             $sql = "INSERT INTO character_weapons (character_id, weapon_id) VALUES (?, ?)";
             $this->db->query($sql, [$winnerId, $battleResult['weapon_dropped']]);
+            
+            // Przegrywający ma 30% szansy na tę samą broń
+            if (mt_rand(1, 100) <= 30) {
+                $this->db->query($sql, [$loserId, $battleResult['weapon_dropped']]);
+            }
         }
         
         if ($battleResult['trait_dropped']) {
+            // Zwycięzca zawsze dostaje trait
             $character->addTrait($winnerId, $battleResult['trait_dropped']);
+            
+            // Przegrywający ma 25% szansy na ten sam trait
+            if (mt_rand(1, 100) <= 25) {
+                $character->addTrait($loserId, $battleResult['trait_dropped']);
+            }
+        }
+        
+        // 2. Dodatkowe szanse na nagrody dla przegrywającego
+        $loserWeaponDrop = $this->checkWeaponDrop(0.3); // 30% standardowej szansy
+        $loserTraitDrop = $this->checkTraitDrop(0.25);  // 25% standardowej szansy
+        
+        if ($loserWeaponDrop && $loserWeaponDrop != $battleResult['weapon_dropped']) {
+            $sql = "INSERT INTO character_weapons (character_id, weapon_id) VALUES (?, ?)";
+            $this->db->query($sql, [$loserId, $loserWeaponDrop]);
+        }
+        
+        if ($loserTraitDrop && $loserTraitDrop != $battleResult['trait_dropped']) {
+            $character->addTrait($loserId, $loserTraitDrop);
+        }
+        
+        // 3. Bonus za uczestnictwo (mała szansa na dodatkowe nagrody dla zwycięzcy)
+        if (mt_rand(1, 100) <= 15) { // 15% szansy na bonus
+            $bonusWeapon = $this->checkWeaponDrop(0.5);
+            if ($bonusWeapon && $bonusWeapon != $battleResult['weapon_dropped']) {
+                $sql = "INSERT INTO character_weapons (character_id, weapon_id) VALUES (?, ?)";
+                $this->db->query($sql, [$winnerId, $bonusWeapon]);
+            }
+        }
+        
+        if (mt_rand(1, 100) <= 12) { // 12% szansy na bonus trait
+            $bonusTrait = $this->checkTraitDrop(0.4);
+            if ($bonusTrait && $bonusTrait != $battleResult['trait_dropped']) {
+                $character->addTrait($winnerId, $bonusTrait);
+            }
         }
     }
     
